@@ -1,0 +1,8 @@
+asset:        orpheus-lyre-128.png
+title:        Orpheus "Lyre of Time" app icon (128x128 PNG)
+author:       Orpheus contributors
+source:       original work
+license:      MIT OR Apache-2.0
+license-file: LICENSE-MIT
+added:        2026-11-14 by Orpheus contributors
+notes:        128 px render of the Orpheus Lyre of Time icon, used by UPDATE_APP and window chrome.

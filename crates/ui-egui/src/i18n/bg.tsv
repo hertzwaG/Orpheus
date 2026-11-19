@@ -1,0 +1,1418 @@
+# Bulgarian (bg) catalog. Columns separated by TAB: context <TAB> source <TAB> translation
+# Empty context is a plain UI string. Escapes: \n, \t, \\; preserve placeholders and trailing …
+# Interface coverage for menus, start screen, panels, tooltips, settings, and import/save/export dialogs.
+	   Angle	   Ъгъл
+	   Blur	   Размазване
+	   Corner Radius	   Радиус на ъглите
+	   Distance	   Разстояние
+	   Opacity	   Непрозрачност
+	   Size	   Размер
+	 ({ch} output channels)	 ({ch} изходни канала)
+	 (unavailable)	 (недостъпно)
+	 frames	 кадъра
+	(empty)	(празно)
+	(no clips)	(няма клипове)
+	(no sequences)	(няма секвенции)
+	{codec} · {rate} Hz · {n} channel(s)	{codec} · {rate} Hz · {n} канал(а)
+	{frames} frames ({seconds} s)	{frames} кадъра ({seconds} s)
+	{n} files	{n} файла
+	{n} sessions have unsaved changes:	{n} сесии имат незапазени промени:
+	{name} - Edited	{name} - Редактиран
+	{name} (Modified)	{name} (Променен)
+	{name} (Simplified)	{name} (Опростена)
+	{name} Selection.fcproj	{name} Selection.fcproj
+	{rate} fps Drop-Frame Timecode	{rate} fps Drop-Frame таймкод
+	{rate} fps Non Drop-Frame Timecode	{rate} fps Non Drop-Frame таймкод
+	{rate} fps Timecode	{rate} fps таймкод
+	{rate} frames/second	{rate} кадъра/секунда
+	{sel} of {total} items selected	Избрани {sel} от {total} елемента
+	{total} items	{total} елемента
+	“{file}” already exists in “{folder}”. Do you want to replace it?	„{file}“ вече съществува в „{folder}“. Искате ли да го замените?
+	✓ Enable	✓ Включено
+	0 fastest, 8 smallest	0 най-бързо, 8 най-малко
+	1 file	1 файл
+	1 frame ({seconds} s)	1 кадър ({seconds} s)
+	10-bit color	10-битов цвят
+	16 bit	16 бита
+	24 bit	24 бита
+	32 bit float	32 бита плаваща запетая
+	32 bit	32 бита
+	A cut sequence with transitions, effects and music	Монтирана секвенция с преходи, ефекти и музика
+	About Orpheus	За Orpheus
+	About	Относно
+	Action and Title Safe Areas	Безопасни зони за действие и титри
+	Action Safe Area	Безопасна зона за действие
+	Action:	Действие:
+	Active	Активен
+	Adaptive ({bpp} bits per pixel)	Адаптивен ({bpp} бита на пиксел)
+	Adaptive	Адаптивен
+	Add audio submix tracks	Добавяне на субмикс аудиописти
+	Add audio tracks	Добавяне на аудиописти
+	Add Frame Hold	Добавяне на стоп-кадър
+	Add Guide…	Добавяне на водач…
+	Add Marker (M)	Добавяне на маркер (M)
+	Add Marker	Добавяне на маркер
+	Add media to your project. Drop files or folders anywhere in the window, or choose a source below.	Добавете медия към проекта. Пуснете файлове или папки навсякъде в прозореца или изберете източник по-долу.
+	Add to favorites	Добавяне към любими
+	Add Track	Добавяне на писта
+	Add Tracks	Добавяне на писти
+	Add Tracks…	Добавяне на писти…
+	Add video tracks	Добавяне на видеописти
+	Added to the export queue	Добавено в опашката за експорт
+	Adjust Gain by:	Корекция на усилването с:
+	Adjustment Layer…	Коригиращ слой…
+	After {name}	След {name}
+	Align and Transform	Подравняване и трансформация
+	Align Bottom	Подравняване долу
+	Align Center Horizontally	Хоризонтално центриране
+	Align Center Vertically	Вертикално центриране
+	Align Left	Подравняване вляво
+	Align Right	Подравняване вдясно
+	Align Top	Подравняване горе
+	Alignment	Подравняване
+	All Caps	Всички главни
+	All Empty Tracks	Всички празни писти
+	All Intra	Само Intra
+	All Panels	Всички панели
+	All	Всички
+	Alpha	Алфа
+	Amount	Количество
+	Analyze	Анализ
+	Anamorphic 2:1 (2.0)	Анаморфно 2:1 (2.0)
+	Anchor point	Опорна точка
+	Any	Всеки
+	Appearance Mode	Режим на изгледа
+	Appearance Settings…	Настройки на външния вид…
+	Appearance	Външен вид
+	Appearance…	Външен вид…
+	Apple ProRes 422 HQ	Apple ProRes 422 HQ
+	Apple ProRes 422 LT	Apple ProRes 422 LT
+	Apple ProRes 422 Proxy	Apple ProRes 422 Proxy
+	Apple ProRes 422	Apple ProRes 422
+	Apple ProRes 4444 XQ	Apple ProRes 4444 XQ
+	Apple ProRes 4444	Apple ProRes 4444
+	Apply a cut at each detected cut point	Срез при всяка открита точка на смяна на кадъра
+	Apply Default Audio Transition	Прилагане на аудио преход по подразбиране
+	Apply Default Transitions	Прилагане на преходи по подразбиране
+	Apply Default Video Transition	Прилагане на видео преход по подразбиране
+	Apply Guide Template	Прилагане на шаблон за водачи
+	APV 422-10	APV 422-10
+	APV 422-12	APV 422-12
+	Are you sure you want to discard your changes to '{file}'?	Сигурни ли сте, че искате да отхвърлите промените в „{file}“?
+	Aspect	Съотношение
+	Assembly	Сглобяване
+	At Unnumbered Markers	На неномерирани маркери
+	Audio analysis:	Аудио анализ:
+	Audio Bitrate	Битрейт на звука
+	Audio Clip Mixer	Миксер на аудиоклипове
+	Audio effects	Аудио ефекти
+	Audio Format	Аудио формат
+	Audio Gain	Усилване на звука
+	Audio Hardware…	Аудио хардуер…
+	Audio Info	Аудио информация
+	Audio Meters	Аудио индикатори
+	Audio on track {t}	Звук на писта {t}
+	Audio only	Само звук
+	Audio Previews:	Аудио прегледи:
+	Audio Samples	Аудио семпли
+	Audio Track Mixer	Миксер на аудиописти
+	Audio Tracks	Аудиописти
+	Audio Waveform	Вълнова форма на звука
+	Audio	Звук
+	Audio:	Звук:
+	Audio…	Звук…
+	Auto Save…	Автоматично запазване…
+	Auto Tone Map Media (HDR and log into SDR)	Автоматично тонално преобразуване (HDR и log към SDR)
+	Auto	Автоматично
+	Auto-Adjust Multi-Camera Playback Quality	Автоматично качество при многокамерно възпроизвеждане
+	Automate To Sequence	Автоматично към секвенция
+	Automate to Sequence…	Автоматично към секвенция…
+	Automatic	Автоматично
+	Auto-saves go to: {dir}	Автозаписите се записват в: {dir}
+	AV1 needs a hardware encoder; none was found on this machine, and Orpheus has no software AV1 encoder yet.	AV1 изисква хардуерен енкодер; такъв не е открит на тази машина, а Orpheus все още няма софтуерен AV1 енкодер.
+	Average Data Rate	Средна скорост на данните
+	Avid Log Exchange	Avid Log Exchange
+	Background	Фон
+	Bars and Tone	Цветни ленти и тон
+	Bars and Tone…	Цветни ленти и тон…
+	Baseline Shift	Изместване на базовата линия
+	Before First Track	Преди първата писта
+	Bin: {name}	Папка: {name}
+	Bitrate Encoding	Кодиране на битрейта
+	Black Video…	Черно видео…
+	Blue	Синьо
+	Bring Forward	Преместване напред
+	Browse files…	Избор на файлове…
+	Browse	Преглед
+	Browse…	Преглед…
+	Burn Captions Into Video	Вграждане на субтитрите във видеото
+	Button Editor	Редактор на бутони
+	Cancel	Отказ
+	Cancelled	Отменено
+	Caption track options	Опции на пистата за субтитри
+	Caption Tracks	Писти за субтитри
+	Captions and Graphics	Субтитри и графики
+	Captions	Субтитри
+	Capture Format:	Формат на записа:
+	Capture	Запис
+	Captured and Generated:	Записани и генерирани:
+	Captured View:	Изглед за запис:
+	Case Sensitive	Чувствително към регистъра
+	Center Align Text	Центриране на текста
+	Channels	Канали
+	Check for Updates…	Проверка за обновления…
+	Clear (Delete)	Изчистване (Delete)
+	Clear Finished	Изчистване на завършените
+	Clear Guides	Изчистване на водачите
+	Clear In and Out	Изчистване на вход и изход
+	Clear In	Изчистване на вход
+	Clear Markers	Изчистване на маркери
+	Clear Out	Изчистване на изход
+	Clear Recent Files	Изчистване на скорошните файлове
+	Clear Selected Marker	Изчистване на избрания маркер
+	Clear	Изчистване
+	Click to select all clips to the left in all tracks. Shift-click for a single track.	Щракнете, за да изберете всички клипове вляво на всички писти. Shift+щракване за една писта.
+	Click to select all clips to the right in all tracks. Shift-click for a single track.	Щракнете, за да изберете всички клипове вдясно на всички писти. Shift+щракване за една писта.
+	Click to select, or click in empty space and drag to marquee select. Use Shift, Alt, and Ctrl for other options.	Щракнете за избор или плъзнете в празно пространство за рамка за избор. Използвайте Shift, Alt и Ctrl за други опции.
+	Click to select, or click in empty space and drag to marquee select. Use Shift, Opt, and Cmd for other options.	Щракнете за избор или плъзнете в празно пространство за рамка за избор. Използвайте Shift, Opt и Cmd за други опции.
+	Click to split a clip. Shift-click to split all tracks.	Щракнете, за да разрежете клип. Shift+щракване разрязва всички писти.
+	Click to zoom in; Alt-click to zoom out.	Щракнете за приближаване; Alt+щракване за отдалечаване.
+	Click to zoom in; Opt-click to zoom out.	Щракнете за приближаване; Opt+щракване за отдалечаване.
+	Clip Names and Markers	Имена на клипове и маркери
+	Clip Names	Имена на клипове
+	Clip Overlap:	Припокриване на клипове:
+	Clip	Клип
+	Clips	Клипове
+	Close All Other Projects	Затваряне на всички други проекти
+	Close All	Затваряне на всички
+	Close Panel	Затваряне на панела
+	Close Project	Затваряне на проект
+	Close	Затваряне
+	Codec: {codec}	Кодек: {codec}
+	Codec:	Кодек:
+	Color Grading	Цветове
+	Color Matte Color	Цвят на цветната подложка
+	Color Matte…	Цветна подложка…
+	Color	Цвят
+	Color:	Цвят:
+	Color…	Цвят…
+	Colour	Цвят
+	Comment	Коментар
+	Comments:	Коментари:
+	Community	Общност
+	Comparison View	Изглед за сравнение
+	Comparison	Сравнение
+	Composite in Linear Color	Композиране в линеен цвят
+	Composite on the GPU when available	Композиране на GPU, когато е налично
+	Composite Video	Композитно видео
+	Composite	Композит
+	Compression Level	Ниво на компресия
+	Compression	Компресия
+	Configure…	Настройване…
+	Containers	Контейнери
+	Continue	Продължи
+	Continuous	Непрекъснато
+	Contributors	Сътрудници
+	Copy and Create Proxies	Копиране и създаване на проксита
+	Copy of the project saved to {path}	Копие на проекта е запазено в {path}
+	Copy	Копиране
+	Copyright	Авторски права
+	Corner Radius	Радиус на ъглите
+	Create a bin of subclips from each detected cut point	Създаване на папка с подклипове от всяка открита смяна на кадър
+	Create a clip marker at each detected cut point	Създаване на маркер на клип при всяка открита смяна на кадър
+	Create new graphic	Създаване на нова графика
+	Create Proxies	Създаване на проксита
+	Create Search Bin	Създаване на папка за търсене
+	Create Sidecar File	Създаване на съпътстващ файл
+	Creator	Създател
+	Cube LUT	Cube LUT
+	Currently: {loc} — {files} file(s), {size}	В момента: {loc} — {files} файл(а), {size}
+	Custom ({ratio})	Потребителско ({ratio})
+	Custom	Потребителски
+	Cut	Изрязване
+	D1/DV NTSC (0.9091)	D1/DV NTSC (0.9091)
+	D1/DV PAL (1.0940)	D1/DV PAL (1.0940)
+	Dark Theme	Тъмна тема
+	Dark	Тъмен
+	Darkest	Най-тъмен
+	Date Created	Дата на създаване
+	Decoded frames held for the monitors and thumbnails: {used} of {budget}.	Декодирани кадри за мониторите и миниатюрите: {used} от {budget}.
+	Decoders	Декодери
+	Default location	Местоположение по подразбиране
+	Delete Audio Tracks	Изтриване на аудиописти
+	Delete Caption Tracks	Изтриване на писти за субтитри
+	Delete Guide Template	Изтриване на шаблон за водачи
+	Delete Layer	Изтриване на слой
+	Delete Search Bin	Изтриване на папка за търсене
+	Delete this preset	Изтриване на този пресет
+	Delete Track	Изтриване на писта
+	Delete Tracks	Изтриване на писти
+	Delete Tracks…	Изтриване на писти…
+	Delete Video Tracks	Изтриване на видеописти
+	Delete	Изтриване
+	Deleted {n} file(s), {size}.	Изтрити {n} файл(а), {size}.
+	Deleted preset “{active}”	Изтрит пресет „{active}“
+	Demo footage	Демо кадри
+	Demo project	Демо проект
+	Descending	Низходящо
+	Description	Описание
+	Description:	Описание:
+	Destination	Дестинация
+	Destination:	Дестинация:
+	Destinations	Дестинации
+	Details: {path}	Подробности: {path}
+	Disabled clips	Изключени клипове
+	Discard	Отхвърляне
+	Display Format:	Формат на показване:
+	Display Mode	Режим на показване
+	Distribute Horizontally	Разпределяне хоризонтално
+	Distribute Vertically	Разпределяне вертикално
+	Dock Panel	Прикачване на панела
+	Docking Action	Действие за прикачване
+	Done	Готово
+	Double-click a sequence in the Project panel to open it here.	Щракнете двукратно върху секвенция в панела Проект, за да я отворите тук.
+	Drag a clip to slide it between its neighbours.	Плъзнете клипа, за да го преместите между съседните му.
+	Drag a clip to slip its source in/out without moving it.	Плъзнете клипа, за да изместите началото/края в източника без да го местите.
+	Drag an edge to change the clip's speed so it fills the new duration.	Плъзнете ръба, за да промените скоростта на клипа така, че да запълни новата продължителност.
+	Drag an edit point to ripple trim; later clips move to keep the gap closed.	Плъзнете точка на срез за подрязване с изместване; следващите клипове се преместват, за да затворят празнината.
+	Drag an edit point to roll it: the out of one clip and the in of the next move together.	Плъзнете точка на срез, за да я преместите: краят на единия клип и началото на следващия се местят заедно.
+	Drag the edge of a music clip to remix it to the new duration at musically matching beats.	Плъзнете ръба на музикален клип, за да го ремиксирате до новата продължителност по музикални тактове.
+	Drag to scroll the timeline.	Плъзнете за превъртане на времевата линия.
+	Drive	Устройство
+	Drop media here to create sequence.	Пуснете медия тук, за да създадете секвенция.
+	Duration: {tc}	Продължителност: {tc}
+	Duration:	Продължителност:
+	DVCPRO HD (1.5)	DVCPRO HD (1.5)
+	Dynamic Audio Waveforms	Динамични звукови вълнови форми
+	Edit Cameras…	Редактиране на камери…
+	Edit Marker…	Редактиране на маркер…
+	Edit Offline File	Редактиране на офлайн файл
+	Edit Original	Редактиране на оригинала
+	Edit Workspaces…	Редактиране на работни пространства…
+	Edit	Редактиране
+	Editing	Монтаж
+	Effect Controls	Контроли на ефекти
+	Effects	Ефекти
+	Empty tracks	Празни писти
+	Enable	Включено
+	Encoder	Енкодер
+	Encoding {n}%	Кодиране {n}%
+	End: {tc}	Край: {tc}
+	Entire Source	Целият източник
+	Essential Graphics	Основни графики
+	Essential Sound	Основен звук
+	Estimated file size: {size}	Приблизителен размер: {size}
+	Events	Събития
+	Every frame a keyframe (edit-friendly, larger files)	Всеки кадър е ключов (удобно за монтаж, по-големи файлове)
+	Existing XMP files written by other applications are left unchanged.	Съществуващите XMP файлове от други приложения остават непроменени.
+	Expand All Tracks	Разгъване на всички писти
+	Export Audio	Експортиране на звук
+	Export formats	Формати за експорт
+	Export Frame (Shift+E)	Заснемане на кадър (Shift+E)
+	Export Frame	Заснемане на кадър
+	Export Markers as CSV…	Експортиране на маркери като CSV…
+	Export Options	Настройки за експорт
+	Export Preset…	Експортиране на пресет…
+	Export presets	Пресети за експорт
+	Export the labels to a preset file…	Експортиране на етикетите във файл с пресет…
+	Export	Експорт
+	Export: no file chosen (agents: export.presets.export {path, names})	Експорт: не е избран файл (агенти: export.presets.export {path, names})
+	Export…	Експортиране…
+	Exported {path}	Експортирано: {path}
+	Exported {path}; not in the LUT: {effects}	Експортирано: {path}; не са в LUT: {effects}
+	Exported to {path}	Експортирано в {path}
+	Exporting {path}	Експортиране на {path}
+	Exporting	Експортиране
+	Extract (')	Изваждане (')
+	Eyedropper: no picture to sample	Пипета: няма картина за проба
+	Failed: {e}	Неуспешно: {e}
+	Fast editing for Shorts and TikTok.	Бърз монтаж за Shorts и TikTok.
+	Faux Bold	Псевдо получер
+	Faux Italic	Псевдо курсив
+	Favorites only	Само любими
+	Favorites	Любими
+	Field Options…	Опции на полетата…
+	Field Order	Ред на полетата
+	File Format	Файлов формат
+	File Name & Location	Име и местоположение на файла
+	File Name	Име на файла
+	File Path	Път до файла
+	File Size	Размер на файла
+	File	Файл
+	Fill frame	Запълване на кадъра
+	Fill Type	Тип запълване
+	Fill	Запълване
+	Find in:	Търсене в:
+	Find	Търсене
+	Find:	Търсене:
+	Find…	Търсене…
+	Fit to frame	Побиране в кадъра
+	Fit	Побиране
+	FLAC (lossless)	FLAC (без загуби)
+	FLAC stores whole-number samples only	FLAC съхранява само целочислени семпли
+	Flash Cue Marker	Маркер Flash Cue
+	Flatten	Обединяване
+	Folder	Папка
+	Font family	Шрифтово семейство
+	Font Size	Размер на шрифта
+	Font Style	Стил на шрифта
+	Font	Шрифт
+	Format	Формат
+	Frame Hold Options…	Опции за стоп-кадър…
+	Frame Rate	Кадрова честота
+	Frame Size	Размер на кадъра
+	Frames per Still:	Кадри за неподвижно изображение:
+	frames	кадъра
+	Freeform View Options…	Настройки на свободния изглед…
+	Freeform View	Свободен изглед
+	Freeform	Свободен
+	Full screen	Цял екран
+	Full timeline and advanced tools.	Пълна времева линия и разширени инструменти.
+	Full	Пълна
+	Gaps	Празнини
+	General	Общи
+	General…	Общи…
+	Go to In (Shift+I)	Към входа (Shift+I)
+	Go to In	Към входа
+	Go to Next Edit Point	Към следващата точка на срез
+	Go to Out (Shift+O)	Към изхода (Shift+O)
+	Go to Out	Към изхода
+	Go to Previous Edit Point	Към предишната точка на срез
+	GPU Rendering	GPU рендериране
+	Gradient	Градиент
+	Graphics and Titles	Графика и текст
+	Graphics…	Графика…
+	Green	Зелено
+	Group	Групиране
+	Guide Templates	Шаблони за водачи
+	Hand Tool	Инструмент „Ръка“
+	Hardware (AV1 has no software encoder)	Хардуерен (AV1 няма софтуерен енкодер)
+	Hardware (H.265 has no software encoder)	Хардуерен (H.265 няма софтуерен енкодер)
+	HD Anamorphic 1080 (1.333)	HD анаморфно 1080 (1.333)
+	Head and Tail	Начало и край
+	Head	Начало
+	Height:	Височина:
+	Help	Помощ
+	Hide Orpheus	Скриване на Orpheus
+	Hide Others	Скриване на другите
+	High Quality Playback	Възпроизвеждане с високо качество
+	History	История
+	Home	Начало
+	Horizontal	Хоризонтално
+	Hover Scrub	Преглед при посочване
+	Icon View	Изглед с икони
+	Icon	Икони
+	Ignore Audio	Игнориране на звука
+	Ignore Options	Опции за игнориране
+	Ignore Video	Игнориране на видеото
+	Image Overlay	Наслагване на изображение
+	Image	Изображение
+	Import a preset file…	Импортиране на файл с пресет…
+	Import captions file…	Импортиране на файл със субтитри…
+	Import from Media Browser	Импортиране от медийния браузър
+	Import From	Импортиране от
+	Import Image Sequence…	Импортиране на поредица изображения…
+	Import Presets…	Импортиране на пресети…
+	Import	Импорт
+	Import: no file chosen (agents: export.presets.import {path})	Импорт: не е избран файл (агенти: export.presets.import {path})
+	Import…	Импортиране…
+	Imported “{name}”	Импортирано: „{name}“
+	in	в
+	Include Alpha Channel	Включване на алфа канал
+	Info	Информация
+	Ingest Settings	Настройки за поемане
+	Ingest	Поемане
+	Insert (,)	Вмъкване (,)
+	Insert and overwrite sequences as nests or individual clips	Вмъкване и презаписване на секвенции като вградени или отделни клипове
+	Insert Edit	Редактиране с вмъкване
+	Insert Frame Hold Segment	Вмъкване на сегмент със стоп-кадър
+	Insert	Вмъкване
+	Join Through Edits	Свързване на срезовете
+	Justify	Двустранно подравняване
+	Keep:	Запазване:
+	Kerning	Кърнинг
+	Key Frame Distance	Разстояние между ключови кадри
+	Keyboard Shortcuts…	Клавишни комбинации…
+	Label Color Presets	Пресети за цветове на етикети
+	Label Colors	Цветове на етикети
+	Label	Етикет
+	Labels…	Етикети…
+	Language	Език
+	Language:	Език:
+	Last auto-save {a} · last recovery copy {j}	Последно автозапазване: {a} · последно копие за възстановяване: {j}
+	Last auto-save {a}	Последно автозапазване: {a}
+	Last recovery copy {j}	Последно копие за възстановяване: {j}
+	Layers	Слоеве
+	Leading	Междуредие
+	Learning	Обучение
+	Left Align Text	Подравняване на текста вляво
+	Level	Ниво
+	Libraries	Библиотеки
+	Lift (;)	Повдигане (;)
+	Ligatures	Лигатури
+	Light Theme	Светла тема
+	Light	Светъл
+	Link	Свързване
+	Linked Selection	Свързан избор
+	List View	Списъчен изглед
+	List	Списък
+	Location	Местоположение
+	Lock Guides	Заключване на водачите
+	Log Note:	Бележка в дневника:
+	Loop marked range	Повтаряне на маркирания диапазон
+	Loop	Повтаряне
+	Loudness Normalization	Нормализиране на силата на звука
+	Luma Min / Max	Мин. / Макс. яркост
+	Magnification	Увеличение
+	Main (8-bit)	Main (8-битов)
+	Main (8-bit; Main 10 for HDR sequences)	Main (8-битов; Main 10 за HDR секвенции)
+	Main 10 (10-bit, HDR)	Main 10 (10-битов, HDR)
+	Make Subsequence	Създаване на подсеквенция
+	Manage Guides…	Управление на водачите…
+	Manage Saved View Presets	Управление на запазените изгледи
+	Mark Clip	Маркиране на клипа
+	Mark In (I)	Маркиране на вход (I)
+	Mark In	Маркиране на вход
+	Mark Out (O)	Маркиране на изход (O)
+	Mark Out	Маркиране на изход
+	Mark Selection	Маркиране на избора
+	Markers	Маркери
+	Master volume: use the Audio Track Mixer	Обща сила на звука: използвайте миксера на аудиописти
+	Match {n} of {total}	Съвпадение {n} от {total}
+	Match Source ({seq_sr} Hz)	Съвпадение с източника ({seq_sr} Hz)
+	Match Source	Съвпадение с източника
+	Match:	Съвпадение:
+	Maximum Bit Depth	Максимална дълбочина на цвета
+	Maximum Bitrate	Максимален битрейт
+	Maximum Render Quality	Максимално качество на рендериране
+	Media Analysis & Transcription…	Анализ на медия и транскрипция…
+	Media Browser	Медиен браузър
+	Media Cache…	Медиен кеш…
+	Media Duration	Продължителност на медията
+	Media End	Край на медията
+	Media File	Медиен файл
+	Media Name:	Име на медията:
+	Media Start	Начало на медията
+	Media Type	Тип медия
+	Media	Медия
+	Media…	Медия…
+	Memory…	Памет…
+	Merge Clips…	Сливане на клипове…
+	Metadata Display…	Показване на метаданни…
+	Metadata	Метаданни
+	Method:	Метод:
+	Milliseconds	Милисекунди
+	Minimize All Tracks	Свиване на всички писти
+	MIT OR Apache-2.0. Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	MIT OR Apache-2.0. Шрифтове: Inter, Noto Serif и JetBrains Mono (SIL OFL 1.1).
+	Mix	Микс
+	Models	Модели
+	Mono	Моно
+	Monoscopic	Моноскопично
+	More	Още
+	More presets…	Още пресети…
+	More transport controls	Още контроли за възпроизвеждане
+	Move clips to the lowest track possible	Преместване на клиповете на възможно най-долната писта
+	Movies, audio and stills from disk	Видео, звук и снимки от диска
+	MP3	MP3
+	Multi-Camera Audio Follows Video	Многокамерен звук следва видеото
+	Multi-Camera Layout	Многокамерна подредба
+	Multi-Camera Record On/Off Toggle	Вкл./изкл. на многокамерен запис
+	Multi-Camera Record	Многокамерен запис
+	Multi-Camera Selection Top Down	Многокамерен избор отгоре надолу
+	Multi-Camera View	Многокамерен изглед
+	Multi-Camera	Многокамерен монтаж
+	Multiplexer	Мултиплексер
+	MXF export writes integer PCM only	MXF експортът записва само целочислен PCM
+	Name Overlay	Наслагване на име
+	Name	Име
+	Name:	Име:
+	Nest…	Вграждане…
+	New Bin From Selection	Нова папка от избора
+	New Bin	Нова папка
+	New Color Matte	Нова цветна подложка
+	New Ellipse	Нова елипса
+	New Item	Нов елемент
+	New Project Shortcut	Нов пряк път за проект
+	New Rectangle	Нов правоъгълник
+	New Search Bin	Нова папка за търсене
+	New Sequence	Нова секвенция
+	New Text Layer	Нов текстов слой
+	New Text	Нов текст
+	Next Appearance Mode	Следващ режим на изглед
+	Next to the media	До медията
+	Night	Нощ
+	No export preset named `{name}`	Няма пресет за експорт с име „{name}“
+	no GPU adapter: the CPU compositor is used	няма GPU адаптер: използва се CPU композитор
+	No	Не
+	None	Няма
+	Normalize All Peaks to:	Нормализиране на всички пикове до:
+	Normalize Max Peak to:	Нормализиране на макс. пик до:
+	Normalize Mix Track to:	Нормализиране на микс пистата до:
+	Normalize Mix Track	Нормализиране на микс пистата
+	not available in this session	не е налично в тази сесия
+	Not Now	Не сега
+	Not supported by Orpheus's encoders yet	Все още не се поддържа от енкодерите на Orpheus
+	Number of Channels:	Брой канали:
+	OK	ОК
+	Opacity	Непрозрачност
+	Open a sequence to export	Отворете секвенция за експортиране
+	Open Demo Project	Отваряне на демо проект
+	Open Project…	Отваряне на проект…
+	Open Recent	Отваряне на скорошни
+	Open	Отваряне
+	Opened {url}	Отворено: {url}
+	OpenType	OpenType
+	Ordering:	Подредба:
+	Orientation	Ориентация
+	Orpheus hit an error	Orpheus срещна грешка
+	Orpheus keeps the rest of the RAM free for other applications.	Orpheus оставя останалата RAM памет свободна за други приложения.
+	Orpheus Project	Проект на Orpheus
+	Orpheus quit unexpectedly while “{name}” had unsaved changes.	Orpheus прекъсна неочаквано, докато „{name}“ имаше незапазени промени.
+	Orpheus was closed while “{name}” had unsaved changes.	Orpheus беше затворен, докато „{name}“ имаше незапазени промени.
+	out	изход
+	Output	Изход
+	Overwrite (.)	Презаписване (.)
+	Overwrite Edit	Редактиране с презаписване
+	Paragraph Text	Абзацен текст
+	Paste Attributes…	Поставяне на атрибути…
+	Path: {path}	Път: {path}
+	Paused Resolution	Резолюция на пауза
+	Peak Amplitude: {peak}	Пикова амплитуда: {peak}
+	Pen Tool	Инструмент „Писалка“
+	Placement	Разположение
+	Placement:	Разположение:
+	Play Around	Възпроизвеждане около позицията
+	Play In to Out	Възпроизвеждане от вход до изход
+	Play Source	Възпроизвеждане на източника
+	Play/Stop	Пускане/Спиране
+	Playback Resolution	Резолюция при възпроизвеждане
+	Playback…	Възпроизвеждане…
+	Play-Stop Toggle (Space)	Пускане/Спиране (Space)
+	Plugins…	Добавки…
+	PNG or JPEG file	PNG или JPEG файл
+	Point Text	Точков текст
+	Polygon Sides	Страни на многоъгълник
+	Position	Позиция
+	Preferences	Настройки
+	Prefix	Префикс
+	Preset Manager	Мениджър на пресети
+	Preset name	Име на пресет
+	Preset	Пресет
+	Preview Area	Зона за преглед
+	Preview	Преглед
+	Profile	Профил
+	Program	Програмен монитор
+	Progress	Напредък
+	Project Auto Save:	Автозапазване на проекта:
+	Project Notes	Бележки по проекта
+	Project saved to {path}	Проектът е запазен в {path}
+	Project Settings	Настройки на проекта
+	Project View Preset {n}	Пресет за изглед на проект {n}
+	Project	Медия
+	Project: {name}	Проект: {name}
+	Properties	Свойства
+	Quality (CRF)	Качество (CRF)
+	Quality	Качество
+	Queue ({n})	Опашка ({n})
+	Quick Export	Бърз експорт
+	Quick Export: {path}	Бърз експорт: {path}
+	Quick Export: open a sequence first	Бърз експорт: първо отворете секвенция
+	Quit Orpheus	Изход от Orpheus
+	Range	Диапазон
+	Rate Stretch Tool	Разтягане на скоростта
+	Ratio	Съотношение
+	Razor Tool	Инструмент „Нож“
+	Ready	Готов
+	Recent	Скорошни
+	Recognize when different speakers are talking	Разпознаване на различни говорители
+	Recover unsaved changes from {when}?	Да се възстановят ли незапазените промени от {when}?
+	Recover Unsaved Changes	Възстановяване на незапазени промени
+	Recover	Възстановяване
+	Recovery copy: {dir}	Копие за възстановяване: {dir}
+	Red	Червено
+	Reference Monitor	Референтен монитор
+	Refresh Project	Обновяване на проекта
+	Refresh Sort Order	Обновяване на сортирането
+	Remix Tool	Инструмент „Ремикс“
+	Remove Attributes…	Премахване на атрибути…
+	Remove from favorites	Премахване от любими
+	Remove Media Cache Files	Изтриване на файловете от медийния кеш
+	Remove	Премахване
+	Rename	Преименуване
+	Render at Maximum Depth	Рендериране с максимална дълбочина
+	Rendered preview	Рендериран преглед
+	Renderer:	Рендерер:
+	Replace File	Замяна на файл
+	Replace With Clip From Source Monitor	Замяна с клип от монитора на източника
+	Replace	Замяна
+	Report an issue	Докладване на проблем
+	Report an Issue…	Докладване на проблем…
+	Reset Interface Zoom	Нулиране на мащаба на интерфейса
+	Reset to Saved Layout	Възстановяване на запазената подредба
+	Reset	Нулиране
+	Reset…	Нулиране…
+	Responsive Design - Position	Адаптивен дизайн - Позиция
+	Responsive Design - Time	Адаптивен дизайн - Време
+	Restore View Preset	Възстановяване на пресет за изглед
+	Reveal in Project	Показване в проекта
+	Reveal Log Files…	Показване на лог файловете…
+	Reveal Nested Sequence	Показване на вградената секвенция
+	Reveal Project in Finder…	Показване на проекта във файловия мениджър…
+	Revert to the preset's colors and names	Връщане към цветовете и имената на пресета
+	Revert	Връщане
+	Review	Преглед
+	Right Align Text	Подравняване на текста вдясно
+	Ripple Delete	Изтриване с изместване
+	Ripple Edit Tool	Подрязване с изместване
+	Ripple Trim In	Подрязване на входа с изместване
+	Ripple Trim Out	Подрязване на изхода с изместване
+	Roll Edit	Преместване на среза
+	Rolling Edit Tool	Преместване на среза
+	Rose	Розово
+	Rotation	Завъртане
+	Safe Margins	Безопасни граници
+	Same as Project	Същото като проекта
+	Sample Rate	Честота на дискретизация
+	Sample Rate:	Честота на дискретизация:
+	Sample Size	Размер на семпъла
+	Save a Copy…	Запазване на копие…
+	Save All	Запазване на всички
+	Save As New View Preset	Запазване като нов пресет за изглед
+	Save as New Workspace…	Запазване като ново работно пространство…
+	Save as Template	Запазване като шаблон
+	Save as Template…	Запазване като шаблон…
+	Save As…	Запазване като…
+	Save changes to “{project_name}” before closing?	Да се запазят ли промените в „{project_name}“ преди затваряне?
+	Save Changes to this Workspace	Запазване на промените в това работно пространство
+	Save current settings as:	Запазване на текущите настройки като:
+	Save Current View Preset	Запазване на текущия пресет за изглед
+	Save Guides as Template…	Запазване на водачите като шаблон…
+	Save Preset	Запазване на пресет
+	Save Project	Запазване на проекта
+	Save	Запазване
+	Saved template {path}	Запазен шаблон: {path}
+	Scale motion effects proportionally when changing frame size	Пропорционално мащабиране на ефектите за движение при смяна на размера
+	Scale To Fill	Мащабиране до запълване
+	Scale To Fit	Мащабиране до побиране
+	Scale to Frame Size	Мащабиране до размера на кадъра
+	Scale	Мащаб
+	Scaling	Мащабиране
+	Scene Edit Detection	Откриване на смяна на сцени
+	Scene Edit Detection: analysing in the background (see Progress)	Откриване на смяна на сцени: анализира във фонов режим (вижте Напредък)
+	Scene Edit Detection…	Откриване на смяна на сцени…
+	Scene:	Сцена:
+	Scratch Disks	Работни дискове
+	Search presets	Търсене на пресети
+	Search	Търсене
+	Search:	Търсене:
+	seconds	секунди
+	Select a graphic clip, or use the Type tool (T) on the Program monitor	Изберете графичен клип или използвайте инструмента за текст (T) върху програмния монитор
+	Select a layer to edit its properties.	Изберете слой, за да редактирате свойствата му.
+	Select an item to preview it	Изберете елемент, за да го видите
+	Selection Order	Ред на избора
+	Selection Tool	Инструмент за избор
+	Send Backward	Преместване назад
+	Send exports here with Send to Queue, then start the queue.	Изпратете експорти тук чрез „Добавяне в опашката“, след което стартирайте опашката.
+	Send to Queue	Добавяне в опашката
+	Sensitivity	Чувствителност
+	Sensitivity:	Чувствителност:
+	Sequence name	Име на секвенцията
+	Sequence Name:	Име на секвенцията:
+	Sequence Settings	Настройки на секвенцията
+	Sequence	Секвенция
+	Sequence…	Секвенция…
+	Sequentially	Последователно
+	Set Comparison Reference	Задаване на референция за сравнение
+	Set Gain to:	Задаване на усилване на:
+	Set	Задаване
+	Settings	Настройки
+	Shadow	Сянка
+	Shape	Фигура
+	Shot/Take:	Кадър/Дубъл:
+	Show Audio Names	Показване на имената на звука
+	Show Audio Waveform	Показване на звуковата вълна
+	Show Duplicate Frame Markers	Показване на маркери за дублирани кадри
+	Show Guides	Показване на водачите
+	Show in the Preset menu	Показване в менюто Пресети
+	Show Multi-Camera Preview Monitor	Показване на многокамерния монитор за преглед
+	Show Rulers	Показване на линиите
+	Show the presets folder	Показване на папката с пресети
+	Show Through Edits	Показване на преминаващите срезове
+	Show Transport Controls	Показване на контролите за възпроизвеждане
+	Show Video Names	Показване на имената на видеото
+	Show Video Thumbnails	Показване на видео миниатюрите
+	Shuttle Left	Превъртане наляво
+	Shuttle Right	Превъртане надясно
+	Shuttle Slow Left	Бавно превъртане наляво
+	Shuttle Slow Right	Бавно превъртане надясно
+	Shuttle Stop	Спиране на превъртането
+	Simplify Sequence	Опростяване на секвенцията
+	Simplify	Опростяване
+	Six procedural 1080p clips with sound	Шест процедурни 1080p клипа със звук
+	Size / Opacity	Размер / Непрозрачност
+	Size	Размер
+	Slide Tool	Плъзгане
+	Slip Tool	Приплъзване
+	Small Caps	Малки главни
+	SMPTE HD bars with 1 kHz reference tone	SMPTE HD ленти с 1 kHz референтен тон
+	Snap in Program Monitor	Прилепване в програмния монитор
+	Snap in Timeline (S)	Прилепване във времевата линия (S)
+	Snap playhead in Timeline when Snap is enabled	Прилепване на курсора във времевата линия, когато Прилепването е включено
+	Something went wrong while drawing the window. Your project is still open; save it to be safe.	Възникна грешка при рисуването на прозореца. Проектът ви остава отворен; запазете го за всеки случай.
+	Sort Icons	Сортиране на иконите
+	Sort Order	Ред на сортиране
+	Source code on GitHub	Изходен код в GitHub
+	Source In/Out is only 1 frame. Choose Entire Source to export the whole sequence.	Вход/изход на източника е само 1 кадър. Изберете „Целият източник“, за да експортирате цялата секвенция.
+	Source In/Out	Вход/изход на източника
+	Source Play/Stop	Пускане/Спиране на източника
+	Source Settings	Настройки на източника
+	Source Text	Изходен текст
+	Source	Източник
+	Speed/Duration…	Скорост/Продължителност…
+	Split	Разделяне
+	Square Pixels (1.0)	Квадратни пиксели (1.0)
+	Standard	Стандартна
+	Start Queue	Стартиране на опашката
+	Start: {tc}	Начало: {tc}
+	Step Back 1 Frame (Left)	1 кадър назад (Left)
+	Step Forward 1 Frame (Right)	1 кадър напред (Right)
+	Stereo	Стерео
+	Stop Source	Спиране на източника
+	Stop	Спиране
+	Stretch To Fill	Разтягане до запълване
+	Strikethrough	Зачертан
+	Stroke 2 Type	Тип на контур 2
+	Stroke 2 Width	Дебелина на контур 2
+	Stroke 2	Контур 2
+	Stroke Type	Тип на контур
+	Stroke Width	Дебелина на контур
+	Stroke	Контур
+	Style	Стил
+	SubRip Subtitle (.srt)	SubRip субтитри (.srt)
+	Summary	Обобщение
+	Sync with system	Синхронизиране със системата
+	Synchronize…	Синхронизиране…
+	System Compatibility Report	Доклад за системна съвместимост
+	System Compatibility Report…	Доклад за системна съвместимост…
+	System Default	Системна настройка
+	Tape Name:	Име на лента:
+	Target Bitrate	Целеви битрейт
+	Target Loudness	Целева сила на звука
+	Template Name:	Име на шаблон:
+	Template Properties	Свойства на шаблона
+	Text (graphics and captions)	Текст (графики и субтитри)
+	Text Box Height	Височина на текстовото поле
+	Text Box Width	Ширина на текстовото поле
+	Text Layer Type	Тип текстов слой
+	Text Properties	Свойства на текста
+	Text Styling	Стилизиране на текста
+	Text to Speech	Текст в говор
+	Text	Текст
+	The control server is disabled: ORPHEUS_CONTROL_TOKEN must contain 64 random hex characters (see docs/control-protocol.md)	Сървърът за управление е изключен: ORPHEUS_CONTROL_TOKEN трябва да съдържа 64 случайни шестнадесетични знака (вижте docs/control-protocol.md)
+	The language changed but could not be saved: {e}	Езикът беше сменен, но не можа да бъде запазен: {e}
+	The project had not been saved yet.	Проектът все още не е бил запазен.
+	The sequence has no caption track.	Секвенцията няма писта за субтитри.
+	This preference is not available yet.	Тази настройка все още не е налична.
+	Thumbnail controls for all pointing devices	Контроли на миниатюрите за всички посочващи устройства
+	Thumbnails show effects applied	Миниатюрите показват приложените ефекти
+	Thumbnails	Миниатюри
+	Timecode Overlay	Наслагване на таймкод
+	Timecode	Таймкод
+	Timeline Display Settings	Настройки на изгледа на времевата линия
+	Timeline	Времева линия
+	Timeline: (no sequences)	Времева линия: (няма секвенции)
+	Timeline…	Времева линия…
+	Title Safe Area	Безопасна зона за титри
+	Title	Заглавие
+	To {name}	До {name}
+	Toggle animation	Превключване на анимация
+	Toggle Proxies	Превключване на проксита
+	Tools	Инструменти
+	Total Duration	Обща продължителност
+	Track Color	Цвят на пистата
+	Track Select Backward Tool	Избор на писти назад
+	Track Select Forward Tool	Избор на писти напред
+	Track type	Тип писта
+	Tracking	Разредка
+	tracks	писти
+	Transcode	Прекодиране
+	Transcribe Sequence	Транскрибиране на секвенцията
+	Transcribe	Транскрибиране
+	Transitions	Преходи
+	Transmit Multi-Camera View	Излъчване на многокамерен изглед
+	Transparency Grid	Мрежа за прозрачност
+	Transparent Video…	Прозрачно видео…
+	Trim In	Подрязване на входа
+	Trim Out	Подрязване на изхода
+	Trim…	Подрязване…
+	True Peak Limit	Ограничение на истинския пик
+	Type Tool	Инструмент за текст
+	Type	Тип
+	Uncompressed (PCM)	Некомпресиран (PCM)
+	Underline	Подчертан
+	Undo	Отмяна
+	Undock Panel	Откачване на панела
+	Ungroup	Разгрупиране
+	Universal Counting Leader…	Универсален брояч…
+	Unlink	Премахване на връзката
+	Unrendered: render to play back in real time	Нерендерирано: рендерирайте за възпроизвеждане в реално време
+	Unrendered: should play back in real time	Нерендерирано: би трябвало да се възпроизвежда в реално време
+	Untitled	Без заглавие
+	Up one level	Едно ниво нагоре
+	Update Metadata	Обновяване на метаданните
+	Use Maximum Render Quality	Използване на максимално качество на рендериране
+	User Order	Потребителски ред
+	User	Потребител
+	Version {version}	Версия {version}
+	Vertical Text	Вертикален текст
+	Vertical Type Tool	Инструмент за вертикален текст
+	Vertical	Вертикално
+	Video and Audio Waveform Split	Разделено видео и звукова вълна
+	Video and Audio	Видео и звук
+	Video and Waveform	Видео и вълнова форма
+	Video Codec	Видео кодек
+	Video effects	Видео ефекти
+	Video Info	Видео информация
+	Video Limiter	Видео ограничител
+	Video Only	Само видео
+	Video Previews:	Видео прегледи:
+	Video Rendering and Playback	Видео рендериране и възпроизвеждане
+	Video Scopes	Видео осцилоскопи
+	Video Tracks	Видеописти
+	Video Usage: {vu}  Audio Usage: {au}	Използване видео: {vu}  Използване звук: {au}
+	Video	Видео
+	Video:	Видео:
+	View	Изглед
+	Voice-Over Record Settings…	Настройки за дикторски запис…
+	Voice-over Record	Дикторски запис
+	Volume	Сила на звука
+	Web & Social	Уеб и социални мрежи
+	WebVTT (.vtt)	WebVTT (.vtt)
+	When enabled, GIF transparency is on/off: alpha below 128 is transparent; 128 and above is opaque.	Когато е включено, прозрачността на GIF е вкл./изкл.: алфа под 128 е прозрачна; 128 и нагоре е непрозрачна.
+	Wide gamut color (composite in BT.2020)	Широка цветова гама (композиране в BT.2020)
+	Width:	Ширина:
+	Window	Прозорец
+	Work Area Bar	Лента на работната зона
+	Work Area	Работна зона
+	Working Color Space:	Работно цветово пространство:
+	Workspaces	Работни пространства
+	Write the metadata of the selected clip(s) ({n}) to XMP files next to their media?	Да се запишат ли метаданните на избраните клипове ({n}) в XMP файлове до медията им?
+	Yes	Да
+	ZIP (1 scan line)	ZIP (1 ред)
+	ZIP (16 scan lines)	ZIP (16 реда)
+	Zoom In	Приближаване
+	Zoom Out	Отдалечаване
+	Zoom to Sequence	Побиране на секвенцията
+	Zoom Tool	Инструмент „Лупа“
+	Zoom	Мащаб
+	Recent Projects	Последни проекти
+	No recent projects	Няма скорошни проекти
+	Redo	Връщане
+	Don't Save	Не запазвай
+	Ripple Edit, Shifting Trailing Clips	Монтаж с изместване на следващите клипове
+	Pin To	Закрепи към
+	Transform	Трансформация
+	Crop	Изрязване
+	Left	Отляво
+	Top	Отгоре
+	Right	Отдясно
+	Bottom	Отдолу
+	Motion	Движение
+	Panner	Панорама
+	Channel Volume	Сила по канали
+	Paste Attributes	Постави атрибути
+	Remove Attributes	Премахни атрибути
+	Ticked attributes are removed from the selected clips.	Отметнатите атрибути се премахват от избраните клипове.
+	Scale Attribute Times	Мащабирай времената на атрибутите
+	Clip Speed / Duration	Скорост / Продължителност на клипа
+	Speed:	Скорост:
+	Reverse Speed	Обратна скорост
+	Maintain Audio Pitch	Запази височината на звука
+	Time Interpolation	Интерполация на времето
+	Time Remapping	Пренареждане на времето
+	Enter a positive duration within the supported speed range.	Въведете положителна продължителност в поддържания диапазон на скоростта.
+	No effects	Няма ефекти
+	File Name:	Име на файл:
+	Clip Name:	Име на клип:
+	Frame Rate:	Кадрова честота:
+	Start:	Начало:
+	End:	Край:
+	In Point	Начална точка
+	Out Point	Крайна точка
+	Playhead	Позиция на възпроизвеждане
+	Sequence Time	Време на секвенцията
+	Source Timecode	Изходен таймкод
+	Timecode:	Таймкод:
+	Set Timecode:	Задай таймкод:
+	Use the file's timecode	Използвай таймкода на файла
+	Media Start:	Начало на медиата:
+	Make Subclip	Създай субклип
+	Edit Subclip	Редактирай субклип
+	Restrict Trims To Subclip Boundaries	Ограничи подрязването до границите на субклипа
+	Convert to Master Clip	Преобразувай в главен клип
+	Modify Clip: Audio Channels	Промяна на клип: Аудио канали
+	Modify Clip: Timecode	Промяна на клип: Таймкод
+	Clip Channel Format:	Формат на каналите на клипа:
+	Number of Audio Clips:	Брой аудио клипове:
+	Media Source Channels	Канали на изходната медия
+	Source channels the selected audio clips play:	Изходни канали, които избраните аудио клипове възпроизвеждат:
+	Field Options	Опции за полета
+	Processing Options	Опции за обработка
+	Always Deinterlace	Винаги премахвай презредовото
+	Flicker Removal	Премахване на трептенето
+	Reverse Field Dominance	Обърни доминирането на полетата
+	Frame Hold Options	Опции за задържане на кадър
+	Hold On	Задръж на
+	Hold Filters	Задръж филтрите
+	Contains:	Съдържа:
+	Video Attributes	Видео атрибути
+	Audio Attributes	Аудио атрибути
+	Nested Sequence Name	Име на вложена секвенция
+	New Offline File	Нов офлайн файл
+	Select one clip (or a linked clip) in the Timeline, or one item in the Project panel, to rename	Изберете един клип (или свързан клип) във времевата линия или един елемент в панела Проект за преименуване
+	Add Edit	Добави срез
+	Add Edit to All Tracks	Добави срез на всички пътеки
+	Apply Audio Transition	Приложи аудио преход
+	Apply Default Transitions to Selection	Приложи преходи по подразбиране към избраното
+	Apply Video Transition	Приложи видео преход
+	Audio Gain…	Усилване на аудиото…
+	Audio Options	Опции за аудио
+	Close Gap	Затвори празнината
+	Delete Render Files	Изтрий рендираните файлове
+	Delete Render Files In to Out	Изтрий рендираните файлове от начало до край
+	Deselect All	Премахни избора
+	Duplicate	Дублиране
+	Extract	Извличане с изместване
+	Lift	Премахване без изместване
+	Match Frame	Намери съответния кадър
+	Overwrite	Презаписване
+	Paste	Поставяне
+	Paste Insert	Вмъкване от клипборда
+	Rename…	Преименуване…
+	Render Audio	Рендиране на аудио
+	Render Effects In to Out	Рендиране на ефектите от начало до край
+	Render In to Out	Рендиране от начало до край
+	Render Selection	Рендиране на избраното
+	Ripple Delete Head Frame	Изтриване с изместване на началния кадър
+	Select All	Избери всички
+	Sequence Settings…	Настройки на секвенцията…
+	Snap in Timeline	Прилепване във времевата линия
+	Trim Edit	Подрязване на среза
+	Video Options	Опции за видео
+	Select All Matching	Избери всички съвпадащи
+	Find Next	Намери следващия
+	Remove Unused	Премахни неизползваните
+	Consolidate Duplicates	Обедини дубликатите
+	Make Subclip...	Създай субклип...
+	Edit Subclip...	Редактирай субклип...
+	Edit Offline...	Редактирай офлайн файл...
+	Source Settings...	Настройки на източника...
+	Modify	Промяна
+	Replace With Clip	Замени с клип
+	From Bin	От проекта
+	From Source Monitor	От монитора на източника
+	From Source Monitor, Match Frame	От монитора на източника (съвпадение на кадър)
+	Restore Captions from Source Clip	Възстанови субтитри от изходния клип
+	Update Metadata...	Обнови метаданните...
+	Generate Audio Waveform	Генерирай аудио вълна
+	Create Multi-Camera Source Sequence...	Създай мултикамерна изходна секвенция...
+	Proxy	Прокси
+	Create Proxies...	Създай прокси файлове...
+	Attach Proxies...	Прикачи прокси файлове...
+	Reconnect Full Resolution Media...	Свържи медия с пълна резолюция...
+	Remix	Ремикс
+	Enable Remix	Активирай ремикс
+	Audio Channels...	Аудио канали...
+	Timecode...	Таймкод...
+	Interpret Footage...	Интерпретация на кадрите...
+	Color...	Цвят...
+	Speed/Duration...	Скорост/Продължителност...
+	Field Options...	Опции за полета...
+	Frame Hold Options...	Опции за задържане на кадър...
+	Render and Replace...	Рендирай и замени...
+	Restore Unrendered	Възстанови нерендираното
+	Reverse Match Frame	Обратно съвпадение на кадър
+	Go to Gap	Към празнина
+	Next in Sequence	Следваща в секвенцията
+	Previous in Sequence	Предишна в секвенцията
+	Next in Track	Следваща в пътеката
+	Previous in Track	Предишна в пътеката
+	Selection Follows Playhead	Изборът следва позицията
+	Normalize Mix Track...	Нормализирай микс пътеката...
+	Transcribe Sequence...	Транскрибирай секвенцията...
+	Simplify Sequence...	Опрости секвенцията...
+	Color Management...	Управление на цветовете...
+	Add Audio Submix Track	Добави субмикс аудио пътека
+	Transcript	Транскрипт
+	Create Captions from Transcript...	Създай субтитри от транскрипт...
+	Export Transcript...	Експортирай транскрипт...
+	Import Captions...	Импортирай субтитри...
+	Export Captions...	Експортирай субтитри...
+	New Layer	Нов слой
+	Align to Video Frame	Подравни към видео кадъра
+	Align to Video Frame as Group	Подравни към видео кадъра като група
+	Align to Selection	Подравни към избора
+	Distribute	Разпредели
+	Arrange	Подреди
+	Select	Избери
+	Reset All Parameters	Нулирай всички параметри
+	Reset Duration	Нулирай продължителността
+	Export As Motion Graphics Template...	Експортирай като шаблон за графика...
+	Install Motion Graphics Template...	Инсталирай шаблон за графика...
+	Upgrade Caption to Graphic	Преобразувай субтитри в графика
+	Upgrade to Source Graphic	Преобразувай в изходна графика
+	Replace Fonts in Projects...	Замени шрифтовете в проекта...
+	Bring to Front	Премести най-отпред
+	Send to Back	Премести най-отзад
+	Select Next Layer	Избери следващия слой
+	Select Previous Layer	Избери предишния слой
+	Make Subclip…	Създай субклип…
+	Edit Subclip…	Редактирай субклип…
+	Edit Offline…	Редактирай офлайн файл…
+	Source Settings…	Настройки на източника…
+	Update Metadata…	Обнови метаданните…
+	Create Multi-Camera Source Sequence…	Създай мултикамерна изходна секвенция…
+	Normalize Mix Track…	Нормализирай микс пътеката…
+	Transcribe Sequence…	Транскрибирай секвенцията…
+	Simplify Sequence…	Опрости секвенцията…
+	Color Management…	Управление на цветовете…
+	Export As Motion Graphics Template…	Експортирай като шаблон за графика…
+	Install Motion Graphics Template…	Инсталирай шаблон за графика…
+	Replace Fonts in Projects…	Замени шрифтовете в проекта…
+	(no clip selected)	Няма избран клип
+	Studio	Studio
+	Select a clip to see its properties	Изберете клип, за да видите свойствата му
+	Orpheus Help…	Помощ за Orpheus…
+	Orpheus Updates	Обновления за Orpheus
+	Looks for a newer Orpheus release and offers to update.	Търси по-нова версия на Orpheus и предлага обновяване.
+	Shows the version and credits in an Orpheus window.	Показва версията и заслугите в прозорец на Orpheus.
+	Orpheus GPU Acceleration (wgpu)	Orpheus GPU ускорение (wgpu)
+	Orpheus Software Only (CPU)	Orpheus само софтуерно (CPU)
+	Orpheus Default	По подразбиране за Orpheus
+	New Project	Нов проект
+	AI	AI
+	AI Tools	AI Инструменти
+	Auto-Cut Silence	Автоматично изрязване на тишина
+	Detect Silence	Откриване на тишина
+	Remove Pauses	Премахване на паузи
+	Automatically detect and ripple-delete silent pauses in speech.	Автоматично открива и премахва тихите паузи в говора.
+	Silence Threshold	Праг на тишина
+	Minimum Pause	Минимална пауза
+	Cut Padding	Буфер при рязане
+	{n} pauses detected ({sec}s saved)	Открити паузи: {n} (спестени {sec} сек)
+	No silent pauses detected	Няма открити тихи паузи
+	Removed {n} pause(s) ({sec}s)	Премахнати паузи: {n} ({sec} сек)
+	AI Subtitles	AI Субтитри
+	Generate offline subtitles via local Whisper Vulkan CLI.	Генериране на офлайн субтитри чрез локален Whisper Vulkan CLI.
+	Whisper CLI ready	Whisper CLI е готов
+	Whisper CLI not found	whisper-cli.exe не е намерен
+	Place whisper-cli.exe next to Orpheus or in %APPDATA%\\Orpheus\\bin\\whisper-cli.exe	Поставете whisper-cli.exe до Orpheus или в %APPDATA%\\Orpheus\\bin\\whisper-cli.exe
+	Bulgarian (bg)	Български (bg)
+	Auto-detect	Автоматично (Auto)
+	English (en)	Английски (en)
+	Spanish (es)	Испански (es)
+	German (de)	Немски (de)
+	Russian (ru)	Руски (ru)
+	Whisper Model	Модел Whisper
+	Large v3 Turbo — Most accurate for BG	Large v3 Turbo — Най-точно за BG
+	Base — Fast	Base — Бързо
+	Model ready offline	Моделът е готов офлайн
+	Download Model	Изтегли модел
+	Download Model (~{mb} MB)	Изтегли модел (~{mb} MB)
+	Downloading Whisper model…	Изтегляне на модела Whisper…
+	Downloading… {pct}% ({done}/{total} MB)	Изтегляне… {pct}% ({done}/{total} MB)
+	Caption Style	Стил на субтитрите
+	Reels (1–3 words)	Reels / TikTok (1–3 думи)
+	Standard sentences	Стандартни изречения
+	Generate Subtitles	Генерирай субтитри
+	Generating AI subtitles…	Генериране на AI субтитри…
+	Generated {n} subtitles	Генерирани субтитри: {n}
+	No speech detected in audio	Не е засечена реч в аудиото
+	Subtitle generation failed: {err}	Грешка при генериране на субтитри: {err}
+	Model download failed: {err}	Грешка при изтегляне на модела: {err}
+	Open a sequence first	Първо отворете секвенция
+	Install whisper-cli.exe first	Първо инсталирайте whisper-cli.exe
+	Download the selected Whisper model first	Първо изтеглете избрания модел Whisper
+	AI Subtitles Status	Състояние на AI субтитрите
+	Download Subtitle Model	Изтегляне на модел за субтитри
+	Compute Device	Изчислително устройство
+	GPU	GPU
+	CPU	CPU
+	Recommended	Препоръчано
+	Compatibility	Съвместимост
+	Vulkan DLL missing	Липсва Vulkan DLL
+	No GPU detected	Не е открит GPU
+	Install whisper-cli.exe with ggml-vulkan.dll for GPU acceleration	Инсталирайте whisper-cli.exe с ggml-vulkan.dll за GPU ускорение
+	ggml-vulkan.dll was not found alongside whisper-cli.exe	ggml-vulkan.dll не е намерен до whisper-cli.exe
+	No Vulkan-compatible discrete GPU detected	Не е открит дискретен GPU, съвместим с Vulkan
+	Recommended for your system ({gpu})	Препоръчано за вашата система ({gpu})
+	Recommended for your system	Препоръчано за вашата система
+	Vulkan DLL missing — using CPU compatibility mode	Липсва Vulkan DLL — използва се CPU режим за съвместимост
+	Recommended for systems with < 4 GB VRAM	Препоръчано за системи с < 4 GB VRAM
+	Recommended for integrated graphics (< 4 GB VRAM)	Препоръчано за вградена графика (< 4 GB VRAM)
+	No hardware GPU detected — using CPU mode	Не е открит хардуерен GPU — използва се CPU режим
+	Orpheus AI Ready	Orpheus AI е готов
+	Orpheus AI engine not found	Orpheus AI енджинът не е намерен
+	AI Model	AI Модел
+	All languages	Всички езици
+	Large v3 Turbo — Most accurate	Large v3 Turbo — Най-висока точност
+	Large v3 Turbo — Most accurate ({lang})	Large v3 Turbo — Най-точно ({lang})
+	Generate offline subtitles locally with Orpheus AI.	Генериране на офлайн субтитри локално с Orpheus AI.
+	Install the Orpheus AI engine first	Първо инсталирайте Orpheus AI енджина
+	Download the selected AI model first	Първо изтеглете избрания AI модел
+	Downloading AI model…	Изтегляне на AI модела…
+	Bring footage, audio, images, or starter projects into your workspace.	Добавете видео, аудио, изображения или готови проекти в работното пространство.
+	Drag and drop files here for quick import	Провлачете и пуснете файлове тук за бърз импорт
+	or click anywhere inside to browse your computer	или щракнете навсякъде вътре, за да изберете от компютъра
+	Imported Media	Импортирани медии
+	Search media…	Търсене на медии…
+	Clear search	Изчисти търсенето
+	Images	Изображения
+	No media imported yet	Все още няма импортирани медии
+	No matching media	Няма съвпадащи медии
+	Add to Timeline	Добави във времевата линия
+	Added {name} to timeline	Добавено във времевата линия: {name}
+	Audio & Text	Звук и текст
+	Video & Visuals	Видео и визия
+ai.perf	Optimal	Перфектно
+ai.perf	Moderate	Средно
+ai.perf	Slow	Слабо
+	Optimal performance on your hardware	Перфектна производителност на вашия хардуер
+	Optimal performance with {gpu} ({vram} GB VRAM, Vulkan)	Перфектна производителност с {gpu} ({vram} GB VRAM, Vulkan)
+	Moderate performance on 4–7 GB VRAM or multi-core CPU	Средна производителност при 4–7 GB VRAM или многоядрен CPU
+	Slow on < 4 GB VRAM or integrated graphics	Бавно при < 4 GB VRAM или вградена графика
+	AI Beat Sync	AI синхронизация по ритъм
+	Automatically analyze music transients and align edits to the beat.	Автоматичен анализ на музикалните пикове и подравняване на срязовете по ритъма.
+	AI Viral Clip Finder	AI търсене на кратки клипове
+	Identify high-impact speech moments for short-form social clips.	Откриване на най-въздействащите моменти от речта за кратки социални клипове.
+	AI Audio Enhance	AI подобрение на звука
+	Isolate dialogue, reduce room echo, and balance vocal loudness locally.	Изолиране на диалога, намаляване на ехото и локално балансиране на гласа.
+	AI Smart Triggers	AI интелигентни тригери
+	Trigger automated B-roll, zoom keyframes, and graphics from dialogue cues.	Автоматично добавяне на B-roll, мащабиране и графики по реплики от диалога.
+	AI Auto-Reframe (16:9 -> 9:16)	AI автоматично прекадриране (16:9 -> 9:16)
+	Track key subjects to convert widescreen edits into vertical 9:16 framing.	Проследяване на основните обекти за превръщане на 16:9 видео във вертикално 9:16.
+	AI Background Removal	AI премахване на фон
+	Remove or blur video backgrounds locally without a green screen.	Локално премахване или замъгляване на видео фона без зелен екран.
+	Local Orpheus AI module preview	Преглед на локален модул на Orpheus AI
+	Cut Interval	Интервал на рязане
+	Low	Ниска
+	Medium	Средна
+	High	Висока
+	Every Beat	На всеки бийт
+	Every 2 Beats	На всеки 2 бийта
+	Every 4 Beats	На всеки 4 бийта
+	Analyze Beats	Анализирай ритъма
+	Add Beat Markers	Добави бийт маркери
+	Auto-Cut Video to Beats	Авто-рязане на видео по ритъм
+	Analyzing audio beats…	Анализиране на аудио ритъма…
+	Detected {count} beats ({bpm} BPM)	Открити {count} бийта ({bpm} BPM)
+	No beats detected in audio	Не са открити бийтове в аудиото
+	Added {n} beat markers	Добавени {n} бийт маркера
+	Applied {n} beat cuts to video	Приложени {n} сряза по ритъм към видеото
+	Beat Sync failed: {err}	Грешка при Beat Sync: {err}
+	Open a sequence with audio first	Първо отворете секвенция с аудио
+	Target Length	Целева дължина
+	15–30s	15–30 сек
+	30–60s	30–60 сек
+	60–90s	60–90 сек
+	Find Viral Clips	Открий кратки клипове
+	Analyze & Find Clips	Анализирай и открий клипове
+	Transcribing audio…	Транскрибиране на аудиото…
+	Scoring viral highlights…	Оценяване на силни моменти…
+	No subtitles yet — click to transcribe and find clips	Няма субтитри — натиснете за транскрибиране и откриване
+	Subtitles ready — scan for top short-form hooks	Субтитрите са готови — сканирайте за силни моменти
+	Found {n} viral clips	Открити {n} кратки клипа
+	Viral Clip Finder failed: {err}	Грешка при търсене на клипове: {err}
+	Jump / Mark	Маркирай
+	Extract Clip	Извади клип
+	Jump to clip start and add timeline In/Out range marker	Премести курсора в началото и маркирай обхвата
+	Create trimmed sequence copy for this clip	Създай отделна изрязана секвенция за този клип
+	Jumped to clip #{rank} ({tc})	Маркиран клип #{rank} ({tc})
+	Extracted clip #{rank}: {name}	Изваден клип #{rank}: {name}
+	Score {score}/100	Оценка {score}/100
+	header.donate	♥ Подкрепи
+	header.donateTooltip	Подкрепете разработката на Orpheus чрез Revolut
+	Trigger Density	Честота на тригерите
+	Subtle	Леко
+	Balanced	Балансирано
+	Dynamic	Динамично
+	Zoom Punch-Ins	Динамичен зуум (Punch-In)
+	SFX Accents	Звукови SFX акценти
+	Callout Markers	Маркери за акцент
+	Adds smooth 100% -> 108% -> 100% scale keyframes on emphasis cues	Добавя плавни ключови кадри 100% -> 108% -> 100% на ключови думи
+	Synthesizes pop, whoosh & ding WAV accents onto an AI SFX track	Синтезира pop, whoosh и ding WAV ефекти на отделна писта AI SFX
+	Places labeled amber callout markers for quick overlay drops	Поставя кехлибарени маркери за бързо добавяне на наслагвания
+	Apply Smart Triggers	Приложи Smart Triggers
+	Detecting smart triggers…	Откриване на ключови акценти…
+	Applied {n} smart triggers	Приложени {n} интелигентни тригера
+	No emphasis triggers detected in speech	Не са открити акценти в речта
+	No subtitles yet — click to transcribe and apply triggers	Няма субтитри — натиснете за транскрипция и акценти
+	Subtitles ready — apply zoom, SFX & callout accents	Субтитрите са готови — приложете зуум, SFX и маркери
+	Enable at least one Smart Trigger action	Включете поне едно действие за Smart Triggers
+	Smart Triggers failed: {err}	Грешка при Smart Triggers: {err}
+audioEnhance	Light	Леко
+	Noise Reduction	Намаляване на шума
+	Studio Strong	Силно (Студио)
+	Voice Clarity EQ	EQ за яснота на гласа
+	Boost vocal presence (3 kHz), warmth, and soften harsh sibilance	Подчертаване на вокалната яснота (3 kHz), топлината и омекотяване на съскащите звуци
+	Auto-Level (-14 LUFS)	Автоматично ниво (-14 LUFS)
+	Apply smooth vocal compression and normalize loudness to -14 LUFS without clipping	Плавна вокална компресия и нормализиране до -14 LUFS без претоварване
+	Enhance Audio	Подобри звука
+	Enhancing audio…	Подобряване на звука…
+	Enhanced {n} audio clips	Подобрени {n} аудио клипа
+	Audio Enhance failed: {err}	Грешка при подобряване на звука: {err}
+	No audio clips found on unlocked tracks	Няма аудио клипове на отключени писти
+	Ready — enhances selected clips or unlocked audio	Готово — подобрява избраните клипове или отключеното аудио
+	Target Format	Целеви формат
+	9:16 Vertical	9:16 Вертикален
+	4:5 Portrait	4:5 Портретен
+	1:1 Square	1:1 Квадратен
+	Tracking Motion	Движение при следене
+	Locked	Фиксирано
+	Smooth Pan	Плавно панорамиране
+	Dynamic Follow	Динамично следене
+	Resize Sequence to Vertical (9:16)	Преоразмери секвенцията до вертикална (9:16)
+	Automatically set the sequence canvas resolution to match the selected vertical or portrait aspect ratio	Автоматично задава резолюцията на секвенцията според избраното вертикално или портретно съотношение
+	Auto-Reframe	Авто-прекадриране
+	Tracking subject for Auto-Reframe…	Следене на обекта за прекадриране…
+	Reframed {n} clip(s) to {aspect} ({kf} keyframes)	Прекадрирани {n} клипа към {aspect} ({kf} ключови кадъра)
+	Auto-Reframe failed: {err}	Грешка при авто-прекадриране: {err}
+	No video clips found on unlocked tracks	Няма видео клипове на отключени писти
+	Ready — tracks subjects and reframes selected or V1 clips	Готово — следи обекта и прекадрира избраните или V1 клипове
+	Gaming Split-Screen	Гейминг разделен екран
+	Detect corner FaceCam and split gameplay (65%) + FaceCam (35%) across two vertical panels	Открива ъглова камера и разделя играта (65%) + камерата (35%) в два вертикални панела
+	FaceCam Position	Позиция на камерата
+	FaceCam Bottom	Камера долу
+	FaceCam Top	Камера горе
+	Crisp	Остро
+	Natural	Естествено
+	Soft	Меко
+	Transparent Alpha	Прозрачен фон (Алфа)
+	Blur Background	Размазан фон
+	Solid Color	Плътен цвят
+	Edge Softness	Мекота на ръбовете
+	Background Mode	Режим на фона
+	Remove Background	Премахни фона
+	Removing background…	Премахване на фона…
+	Removed background on {n} clip(s)	Премахнат фон на {n} клипа
+	Background Removal failed: {err}	Грешка при премахване на фона: {err}
+	Ready — isolates foreground on selected or V1 clips	Готово — изолира предния план на избраните или V1 клипове
+	Orpheus All-In-One	Orpheus Всичко в едно
+	Describe your edit, 2.5D corkboard scene, or AI workflow in plain text.	Опишете монтажа, 2.5D документална сцена или AI задача с обикновен текст.
+	e.g. Build a 2.5D corkboard documentary scene with dynamic shadows, or clean audio & make 9:16	напр. Създай 2.5D коркова документална сцена с динамични сенки или почисти звука и направи 9:16
+	Prompt	Заявка
+	Attach Files…	Прикачи файлове…
+	Fetch public-domain portraits and photos from Wikimedia Commons when building documentary scenes	Извлича свободни портрети и снимки от Wikimedia Commons при създаване на документални сцени
+	Local Ollama URL (optional)	Локален Ollama URL (по избор)
+	Generate & Apply	Генерирай и приложи
+	Running Orpheus All-In-One…	Изпълнение на Orpheus Всичко в едно…
+	Orpheus All-In-One complete	Orpheus Всичко в едно завърши
+	Orpheus All-In-One failed: {err}	Грешка в Orpheus Всичко в едно: {err}
+	Enter a prompt or attach local files first	Въведете заявка или прикачете локални файлове
+	Documentation…	Документация…
+	Quick Start Guide…	Ръководство за бърз старт…
+	System & GPU Info…	Системна и GPU информация…
+	Opens the built-in offline Orpheus v1.0 documentation & release notes.	Отваря вградената офлайн документация и бележките за Orpheus v1.0.
+	Opens the built-in Quick Start Guide for editing and AI tools.	Отваря вграденото ръководство за монтаж и AI инструменти.
+	Opens the keyboard shortcut editor.	Отваря редактора за клавишни комбинации.
+	Orpheus v1.0.0	Orpheus v1.0.0
+	Native Rust Video Editor & Offline AI Studio	Нативен Rust видео редактор и офлайн AI студио
+	© 2026 Orpheus. Proprietary — All Rights Reserved.	© 2026 Orpheus. Всички права запазени.
+	Documentation & Features	Документация и функции
+	Support Orpheus (Revolut)	Подкрепи Orpheus (Revolut)
+	Third-Party Licenses	Лицензи на трети страни
+	View open-source third-party notices.	Преглед на лицензите на отворения код.
+	Fonts: Inter, Noto Serif and JetBrains Mono (SIL OFL 1.1).	Шрифтове: Inter, Noto Serif и JetBrains Mono (SIL OFL 1.1).
+	Orpheus v1.0 Documentation & Release Notes	Документация и бележки за Orpheus v1.0
+	Orpheus Quick Start Guide	Ръководство за бърз старт на Orpheus
+	Orpheus v1.0.0 — Native Rust Video Editor & Offline AI Studio	Orpheus v1.0.0 — Нативен Rust видео редактор и офлайн AI студио
+	Getting Started with Orpheus v1.0	Начало с Orpheus v1.0
+	e.g. Build a 50/50 TikTok split with talking head and article highlight, or a 2.5D corkboard scene	напр. Създай 50/50 TikTok разделяне с говорещ водещ и акцент на статия, или 2.5D коркова сцена
+	Creator Presets	Създателски пресети
+	TikTok 9:16 60fps	TikTok 9:16 60fps
+	YouTube 1080p 60fps	YouTube 1080p 60fps
+	YouTube 2K 60fps	YouTube 2K 60fps
+	YouTube 4K 60fps	YouTube 4K 60fps
+	Creator SFX Pack	Пакет звукови ефекти (SFX)
+	Pure-Rust procedural WAV sound effects — one click inserts at the playhead.	Чисти Rust процедурни WAV звукови ефекти — вмъкване с 1 клик при маркера.
+	Insert procedural SFX at playhead	Вмъкни процедурен звуков ефект при маркера
+	Pop	Поп
+	Whoosh	Свистене (Whoosh)
+	Deep Bass Hit	Дълбок бас удар
+	Bell Ding	Звънец (Ding)
+	Camera Shutter	Затвор на камера
+	Sub Riser	Суб покачване (Riser)
+	Update Available	Налична е актуализация
+	Checking for updates…	Проверка за актуализации…
+	Downloading and installing Orpheus update…	Изтегляне и инсталиране на актуализацията…
+	Orpheus v{ver} is available	Налична е версия Orpheus v{ver}
+	Installed version: v{cur}	Инсталирана версия: v{cur}
+	Open Download Page	Отвори страницата за изтегляне
+	Install Update & Restart	Инсталирай и рестартирай
+	Later	По-късно
+	Orpheus v{ver} is up to date.	Orpheus v{ver} е актуален.
+	Check Again	Провери отново
+	Could not reach the update server (offline or timed out).	Сървърът за актуализации е недостъпен (офлайн или изтекло време).
+	Ready to check for updates.	Готово за проверка за актуализации.
+	Check for Updates	Проверка за актуализации
+	Check GitHub Releases for a newer version of Orpheus.	Провери GitHub Releases за нова версия на Orpheus.
+	Check for updates on startup	Проверявай за актуализации при стартиране
+	Coming soon	Очаквайте скоро
+	Queued AI task ({n} in queue)…	AI задачата е в опашката ({n} чакащи)…
+	AI matting model ready offline	AI моделът за фон е готов за офлайн работа
+	Downloading AI matting model…	Изтегляне на AI модел за фон…
+	AI matting model download failed: {err}	Грешка при изтегляне на AI модела за фон: {err}
+	Download AI Matting Model (~25 MB)	Изтегли AI модел за премахване на фон (~25 MB)
+	Download u2netp.onnx into local models folder for offline neural matting	Изтегли u2netp.onnx в локалната папка models за офлайн невронно изрязване
+	Scale and center clip to fit the sequence frame	Мащабирай и центрирай клипа спрямо размера на секвенцията
+	AI Models	AI Модели
+	Background Removal (u2netp / RMBG-1.4)	Премахване на фон (u2netp / RMBG-1.4)
+	Speech Denoising (RNNoise / DeepFilterNet)	Премахване на шум в реч (RNNoise / DeepFilterNet)
+	Face Detection (UltraFace RFB-320)	Разпознаване на лица (UltraFace RFB-320)
+	Ready offline	Готов за офлайн работа
+	Not downloaded	Не е изтеглен
+	Downloading AI models…	Изтегляне на AI модели…
+	All AI ONNX models are ready offline.	Всички AI ONNX модели са готови за офлайн работа.
+	Download AI Models (~45 MB)	Изтегли AI модели (~45 MB)
+	ONNX Neural Model Ready	ONNX невронният модел е готов
+	Download Speech Denoise Model (~2 MB)	Изтегли модел за реч (~2 MB)
+	Download rnnoise.onnx into local models folder for offline neural speech denoising	Изтегли rnnoise.onnx в локалната папка models за офлайн невронно изчистване на реч
+	Download Face Detection Model (~1.2 MB)	Изтегли модел за лица (~1.2 MB)
+	Download ultraface-rfb-320.onnx into local models folder for offline neural face tracking	Изтегли ultraface-rfb-320.onnx в локалната папка models за офлайн проследяване на лица
+	Created {n} stream chapter(s)	Създадени са {n} глави на стрийма
+	Stream VOD Chapterizer	Разделяне на стрийм VOD на глави
+	Stream VOD Chapterizer failed: {err}	Грешка при разделяне на глави: {err}
+	Chapterizing stream VOD…	Разделяне на стрийм VOD на глави…
+	Chapters	Глави
+	Sparse 10s layout scan + transcript keywords to split long VODs into named chapters.	Рядко сканиране през 10s + ключови думи от транскрипта за разделяне на дълги VOD записи в именувани глави.
+	{n} stream chapter(s) on timeline	{n} глави на стрийма на времевата линия
+	Auto-Split Stream Chapters	Автоматично разделяне на глави
+	Copy YouTube Chapters	Копирай YouTube глави
+	Copied {n} YouTube chapters to clipboard	Копирани са {n} YouTube глави в клипборда
+	Export All Chapters as Separate Videos	Експортирай всички глави като отделни видеа
+	Chapter {cur}/{total}…	Глава {cur}/{total}…
+	Batch exporting {n} chapter(s)…	Пакетно експортиране на {n} глави…
+	Choose an output folder first	Първо изберете папка за изход
+	Cinematic Story	Кинематографична история
+	Vertical Short (9:16)	Вертикално видео (9:16)
+	Clean & Subtitles	Изчистване и субтитри
+	Auto-Search Stock Images	Автоматично търсене на сток изображения
+	Describe the edit or scene you want in plain text and Orpheus will build or automate it. Needs a prompt, attached files, or clips on the timeline.	Опишете желания монтаж или сцена с обикновен текст и Orpheus ще ги изгради или автоматизира. Нуждае се от заявка, прикачени файлове или клипове на времевата линия.
+	Transcribes speech offline into timed captions on the timeline. Needs a sequence with spoken audio and a downloaded speech model.	Транскрибира речта офлайн в синхронизирани субтитри на времевата линия. Нуждае се от секвенция с говор и изтеглен модел за реч.
+	Detects silent pauses in dialogue and ripple-deletes them automatically. Needs a sequence with audio clips.	Открива тихи паузи в диалога и ги изтрива автоматично със затваряне на празнините. Нуждае се от секвенция с аудио клипове.
+	Finds musical beats and places markers or auto-cuts video to the rhythm. Needs a sequence with a music or audio track.	Открива музикалния ритъм и поставя маркери или автоматично реже видеото по бийта. Нуждае се от секвенция с музика или аудио пътека.
+	Scores spoken highlights to find short-form hooks you can jump to or extract. Needs a sequence with spoken audio or subtitles.	Оценява най-силните моменти в речта за кратки клипове, към които можете да преминете или да извлечете. Нуждае се от секвенция с говор или субтитри.
+	Reduces background noise, clarifies vocals, and balances loudness to -14 LUFS. Needs unlocked audio clips on the timeline.	Намалява фоновия шум, изяснява гласа и изравнява силата на звука до -14 LUFS. Нуждае се от отключени аудио клипове на времевата линия.
+	Adds zoom punch-ins, SFX accents, and callout markers on key speech moments. Needs a sequence with spoken audio or subtitles.	Добавя приближения, SFX акценти и маркери в ключови моменти от речта. Нуждае се от секвенция с говор или субтитри.
+	Tracks the main subject and reframes widescreen video for vertical or square formats. Needs unlocked video clips on the timeline.	Проследява главния обект и прекадрира широкоекранно видео за вертикален или квадратен формат. Нуждае се от отключени видео клипове на времевата линия.
+	Separates the foreground subject to make the background transparent, blurred, or solid. Needs unlocked video clips on the timeline.	Отделя обекта на преден план, за да направи фона прозрачен, размазан или едноцветен. Нуждае се от отключени видео клипове на времевата линия.
+	Scans long recordings for scene changes and splits them into labeled chapter markers. Needs unlocked video clips on the timeline.	Сканира дълги записи за смени на сцени и ги разделя на именувани глави с маркери. Нуждае се от отключени видео клипове на времевата линия.
+	Bold Pop-In Captions	Удебелени изскачащи субтитри
+	Auto-Detect	Автоматично
+	Left-Middle	Ляво-среда
+	Bottom-Left	Долу вляво
+	Bottom-Right	Долу вдясно
+	Top-Left	Горе вляво
+	Top-Right	Горе вдясно
+	Right-Middle	Дясно-среда
+	No webcam detected — fell back to single-frame 9:16 Auto-Reframe	Не е открита уебкамера — приложен е стандартен 9:16 Auto-Reframe

@@ -1,0 +1,46 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+Orpheus Video Editor incorporates open-source Rust crates and permissive libraries under their
+respective licenses:
+
+1. egui / eframe / epaint / egui_wgpu (MIT OR Apache-2.0)
+   Copyright (c) Emil Ernerfeldt and egui contributors
+   https://github.com/emilk/egui
+
+2. wgpu / wgpu-core / wgpu-hal / naga (MIT OR Apache-2.0)
+   Copyright (c) The gfx-rs Developers
+   https://github.com/gfx-rs/wgpu
+
+3. symphonia (MPL-2.0)
+   Pure-Rust audio demuxing and decoding
+   https://github.com/pdeljanov/Symphonia
+
+4. image / imageproc (MIT OR Apache-2.0)
+   Encoding/decoding and image primitives
+   https://github.com/image-rs/image
+
+5. serde / serde_json / toml (MIT OR Apache-2.0)
+   Serialization framework for Rust
+   https://github.com/serde-rs/serde
+
+6. rayon (MIT OR Apache-2.0)
+   Data parallelism library for Rust
+   https://github.com/rayon-rs/rayon
+
+7. ureq / rustls / rustls-webpki / webpki-roots (MIT OR Apache-2.0 / ISC)
+   Minimal HTTP client and pure-Rust TLS stack
+
+8. cpal (Apache-2.0)
+   Cross-platform audio I/O in pure Rust
+
+9. rfd / arboard / winit / raw-window-handle (MIT OR Apache-2.0)
+   Cross-platform windowing, native dialogs, and clipboard
+
+10. chrono / sys-locale / subtle / log / thiserror (MIT OR Apache-2.0)
+    Core utilities
+
+11. whisper.cpp / ggml (MIT)
+    Optional external local speech transcription engine binary
+    https://github.com/ggml-org/whisper.cpp
+
+12. Bundled UI Fonts (SIL Open Font License 1.1 / Apache-2.0)
+    See ATTRIBUTION.md for individual font and media asset attributions.

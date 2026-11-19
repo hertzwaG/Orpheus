@@ -1,0 +1,8 @@
+asset:        orpheus.ico
+title:        Orpheus "Lyre of Time" Windows app icon (.ico, 16-256 px)
+author:       Orpheus contributors
+source:       original work
+license:      MIT OR Apache-2.0
+license-file: LICENSE-MIT
+added:        2026-11-14 by Orpheus contributors
+notes:        Multi-resolution ICO (16, 32, 48, 64, 128, 256 px) packed by cargo xtask ico and embedded in orpheus.exe by apps/orpheus/build.rs.
