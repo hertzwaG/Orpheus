@@ -344,7 +344,7 @@ fn fetch_wikimedia_images(topic: &str, prog: Option<&Progress>) -> Vec<RgbaImage
     let query = subject_words.join(" ");
     let encoded: String = query.bytes().map(|b| if b.is_ascii_alphanumeric() { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
 
-    let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
+    let tls = ureq::tls::TlsConfig::builder().provider(ureq::tls::TlsProvider::NativeTls).build();
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .tls_config(tls)
         .https_only(true)

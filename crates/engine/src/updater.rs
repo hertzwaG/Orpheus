@@ -19,7 +19,7 @@ pub const DEFAULT_RELEASES_API_URL: &str = "https://api.github.com/repos/hertzwa
 pub const DEFAULT_UPDATE_URL: &str = DEFAULT_RELEASES_API_URL;
 pub const DEFAULT_RELEASES_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases";
 pub const DEFAULT_LATEST_RELEASE_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases/latest";
-pub const ORPHEUS_VERSION: &str = "1.0.2";
+pub const ORPHEUS_VERSION: &str = "1.0.3";
 
 const MAX_RELEASE_JSON_BYTES: u64 = 512 * 1024;
 const MAX_INSTALLER_BYTES: u64 = 512 * 1024 * 1024;
@@ -125,7 +125,7 @@ pub fn parse_github_release_json(json_str: &str) -> Option<ReleaseInfo> {
     Some(ReleaseInfo { tag_name, version, html_url, download_url, notes })
 }
 
-fn build_http_agent(connect_secs: u64, recv_secs: u64) -> ureq::Agent {
+pub(crate) fn build_http_agent(connect_secs: u64, recv_secs: u64) -> ureq::Agent {
     let tls = ureq::tls::TlsConfig::builder().provider(ureq::tls::TlsProvider::NativeTls).build();
     ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(connect_secs)))

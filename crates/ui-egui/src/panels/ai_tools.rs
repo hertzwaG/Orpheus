@@ -2353,7 +2353,7 @@ fn draw_compute_selector(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, 
     let active = resolve_compute(app.ui.ai_tools.subtitle_compute, status);
     let rec_badge = tl!("Recommended");
     let gpu_sub: String = if !status.vulkan_dll_found {
-        tl!("Vulkan DLL missing").into()
+        if rec.recommended == SubtitleComputeDevice::Gpu { tl!("Click Download AI Engine to enable").into() } else { tl!("Vulkan DLL missing").into() }
     } else if let Some(name) = rec.gpu_display_name.as_deref() {
         name.to_string()
     } else {

@@ -263,9 +263,10 @@ pub fn compact_gpu_name(raw: &str) -> String {
 /// Evaluate the recommended compute device from Vulkan DLL availability and detected GPU metadata.
 pub fn compute_recommendation_for(vulkan_dll_found: bool, gpu: Option<&GpuAdapterInfo>) -> ComputeRecommendation {
     let gpu_display_name = gpu.map(|g| compact_gpu_name(&g.name)).filter(|s| !s.is_empty());
+    let capable_gpu = gpu.is_some_and(|g| g.is_discrete && g.dedicated_vram_mb >= RECOMMENDED_GPU_MIN_VRAM_MB);
     if !vulkan_dll_found {
         return ComputeRecommendation {
-            recommended: SubtitleComputeDevice::Cpu,
+            recommended: if capable_gpu { SubtitleComputeDevice::Gpu } else { SubtitleComputeDevice::Cpu },
             gpu_available: false,
             reason: ComputeRecommendationReason::VulkanDllMissing,
             gpu_display_name,
@@ -1119,13 +1120,13 @@ pub fn download_url_to_path(url: &str, dest: &Path, approx_bytes: u64, prog: &Pr
     let name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("model.bin");
     let part = parent.join(format!("{name}.part"));
 
-    let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
+    let tls = ureq::tls::TlsConfig::builder().provider(ureq::tls::TlsProvider::NativeTls).build();
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .tls_config(tls)
         .https_only(!(cfg!(test) && url.starts_with("http://")))
         .timeout_connect(Some(Duration::from_secs(30)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
-        .user_agent("Orpheus/0.20")
+        .user_agent(format!("Orpheus/{}", crate::updater::ORPHEUS_VERSION))
         .build()
         .new_agent();
 
@@ -1309,6 +1310,7 @@ fn status_cmd(_: &mut Session, _: &Value) -> Result<Value> {
     serde_json::to_value(status()).map_err(|e| EngineError::Other(e.to_string()))
 }
 
+const WHISPER_LATEST_RELEASE_API_URL: &str = "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest";
 const WHISPER_RELEASES_API_URL: &str = "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=5";
 const WHISPER_FALLBACK_ZIP_URL: &str = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip";
 
@@ -1332,7 +1334,7 @@ pub fn resolve_whisper_archive_url_from_json(json_str: &str) -> Option<String> {
             if name.contains("vulkan") && name.contains("x64") {
                 return Some(url.to_string());
             }
-            if name == "whisper-bin-x64.zip" && fallback.is_none() {
+            if (name == "whisper-bin-x64.zip" || name.contains("bin-x64")) && fallback.is_none() {
                 fallback = Some(url.to_string());
             }
         }
@@ -1347,17 +1349,14 @@ fn resolve_whisper_archive_url() -> String {
     {
         return env_url.trim().to_string();
     }
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_connect(Some(std::time::Duration::from_secs(6)))
-        .timeout_recv_response(Some(std::time::Duration::from_secs(10)))
-        .user_agent(format!("Orpheus/{}", crate::updater::ORPHEUS_VERSION))
-        .build()
-        .new_agent();
-    if let Ok(resp) = agent.get(WHISPER_RELEASES_API_URL).header("Accept", "application/vnd.github+json").call()
-        && let Ok(body) = resp.into_body().read_to_string()
-        && let Some(url) = resolve_whisper_archive_url_from_json(&body)
-    {
-        return url;
+    let agent = crate::updater::build_http_agent(6, 10);
+    for api_url in [WHISPER_LATEST_RELEASE_API_URL, WHISPER_RELEASES_API_URL] {
+        if let Ok(resp) = agent.get(api_url).header("Accept", "application/vnd.github+json").call()
+            && let Ok(body) = resp.into_body().read_to_string()
+            && let Some(url) = resolve_whisper_archive_url_from_json(&body)
+        {
+            return url;
+        }
     }
     WHISPER_FALLBACK_ZIP_URL.to_string()
 }
@@ -1387,19 +1386,14 @@ fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::
     let url = resolve_whisper_archive_url();
 
     *lock(&prog.status) = "Downloading Whisper AI engine…".into();
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_connect(Some(std::time::Duration::from_secs(10)))
-        .timeout_recv_response(Some(std::time::Duration::from_secs(180)))
-        .user_agent(format!("Orpheus/{}", crate::updater::ORPHEUS_VERSION))
-        .build()
-        .new_agent();
+    let agent = crate::updater::build_http_agent(10, 180);
     let resp = agent.get(&url).call().map_err(|e| format!("Engine download failed: {e}"))?;
     let total_len = resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|s| s.trim().parse::<u64>().ok()).unwrap_or(0);
     if total_len > 0 {
         prog.total.store(total_len, Ordering::Relaxed);
     }
 
-    let zip_part = bin_dir.join("whisper-engine.zip.part");
+    let zip_part = std::env::temp_dir().join("orpheus-whisper-engine.zip");
     let mut file = std::fs::File::create(&zip_part).map_err(|e| format!("Failed creating temp archive: {e}"))?;
     let mut reader = resp.into_body().into_reader().take(256 * 1024 * 1024);
     let mut buf = [0u8; 64 * 1024];
@@ -1425,7 +1419,7 @@ fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::
     }
 
     *lock(&prog.status) = "Extracting whisper-cli.exe and DLLs…".into();
-    let extract_tmp = bin_dir.join("_extract_tmp");
+    let extract_tmp = std::env::temp_dir().join("orpheus-whisper-extract");
     let _ = std::fs::remove_dir_all(&extract_tmp);
     std::fs::create_dir_all(&extract_tmp).map_err(|e| format!("Failed creating extract directory: {e}"))?;
 
@@ -1457,7 +1451,14 @@ fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::
     }
     let _ = std::fs::remove_dir_all(&extract_tmp);
 
-    if !bin_dir.join(WHISPER_CLI_NAME).is_file() {
+    let target_cli = bin_dir.join(WHISPER_CLI_NAME);
+    if !target_cli.is_file() {
+        let fallback_main = bin_dir.join(if cfg!(windows) { "main.exe" } else { "main" });
+        if fallback_main.is_file() {
+            std::fs::rename(&fallback_main, &target_cli).map_err(|e| format!("Failed renaming main executable: {e}"))?;
+        }
+    }
+    if !target_cli.is_file() {
         return Err(format!("{WHISPER_CLI_NAME} was not found inside the downloaded archive"));
     }
     Ok(downloaded)
@@ -1896,7 +1897,7 @@ mod tests {
         assert_eq!(rec_gpu.gpu_display_name.as_deref(), Some("RX 6700 XT"));
 
         let missing_dll = compute_recommendation_for(false, Some(&rx));
-        assert_eq!(missing_dll.recommended, SubtitleComputeDevice::Cpu);
+        assert_eq!(missing_dll.recommended, SubtitleComputeDevice::Gpu);
         assert!(!missing_dll.gpu_available);
         assert_eq!(missing_dll.reason, ComputeRecommendationReason::VulkanDllMissing);
 
