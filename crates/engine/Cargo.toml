@@ -50,7 +50,7 @@ flate2 = { version = "1.1.10", default-features = false, features = ["rust_backe
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider", "_ring", "gzip", "platform-verifier"] }
+ureq = { version = "3.4", default-features = false, features = ["native-tls", "gzip"] }
 ort = { version = "2.0.0-rc.10", features = ["download-binaries", "directml"] }
 
 [dev-dependencies]

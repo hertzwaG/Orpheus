@@ -19,7 +19,7 @@ pub const DEFAULT_RELEASES_API_URL: &str = "https://api.github.com/repos/hertzwa
 pub const DEFAULT_UPDATE_URL: &str = DEFAULT_RELEASES_API_URL;
 pub const DEFAULT_RELEASES_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases";
 pub const DEFAULT_LATEST_RELEASE_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases/latest";
-pub const ORPHEUS_VERSION: &str = "1.0.1";
+pub const ORPHEUS_VERSION: &str = "1.0.2";
 
 const MAX_RELEASE_JSON_BYTES: u64 = 512 * 1024;
 const MAX_INSTALLER_BYTES: u64 = 512 * 1024 * 1024;
@@ -125,22 +125,35 @@ pub fn parse_github_release_json(json_str: &str) -> Option<ReleaseInfo> {
     Some(ReleaseInfo { tag_name, version, html_url, download_url, notes })
 }
 
-/// Query `endpoint` synchronously with a strict 4-second timeout (safe for background threads).
+fn build_http_agent(connect_secs: u64, recv_secs: u64) -> ureq::Agent {
+    let tls = ureq::tls::TlsConfig::builder().provider(ureq::tls::TlsProvider::NativeTls).build();
+    ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_secs(connect_secs)))
+        .timeout_recv_response(Some(Duration::from_secs(recv_secs)))
+        .max_redirects(5)
+        .tls_config(tls)
+        .user_agent(format!("Orpheus/{ORPHEUS_VERSION}"))
+        .build()
+        .new_agent()
+}
+
+/// Query `endpoint` synchronously with a strict timeout (safe for background threads).
 pub fn check_for_updates_sync(endpoint: &str, current_version: &str) -> UpdateCheckOutcome {
     let trimmed = endpoint.trim();
     if !(trimmed.starts_with("https://") || trimmed.starts_with("http://")) {
         return UpdateCheckOutcome::OfflineOrError("Invalid update endpoint URL".into());
     }
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_connect(Some(Duration::from_secs(4)))
-        .timeout_recv_response(Some(Duration::from_secs(4)))
-        .user_agent(format!("Orpheus/{ORPHEUS_VERSION}"))
-        .build()
-        .new_agent();
+    let agent = build_http_agent(6, 8);
 
     let resp = match agent.get(trimmed).header("Accept", "application/vnd.github+json").call() {
         Ok(r) => r,
-        Err(e) => return UpdateCheckOutcome::OfflineOrError(format!("Update check skipped: {e}")),
+        Err(ureq::Error::StatusCode(404)) => {
+            return UpdateCheckOutcome::OfflineOrError("No published releases found on GitHub yet (HTTP 404).".into());
+        }
+        Err(ureq::Error::StatusCode(code)) => {
+            return UpdateCheckOutcome::OfflineOrError(format!("Update server returned HTTP {code}."));
+        }
+        Err(e) => return UpdateCheckOutcome::OfflineOrError(format!("Update check failed: {e}")),
     };
     let mut body = String::new();
     if let Err(e) = resp.into_body().into_reader().take(MAX_RELEASE_JSON_BYTES).read_to_string(&mut body) {
@@ -196,12 +209,7 @@ pub fn install_windows_update_and_relaunch_with_progress(
     }
     let installer_path = std::env::temp_dir().join("Orpheus-Update-Setup.exe");
 
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_connect(Some(Duration::from_secs(8)))
-        .timeout_recv_response(Some(Duration::from_secs(120)))
-        .user_agent(format!("Orpheus/{ORPHEUS_VERSION}"))
-        .build()
-        .new_agent();
+    let agent = build_http_agent(8, 120);
 
     let resp = agent.get(trimmed).call().map_err(|e| format!("Download failed: {e}"))?;
     if let Some(p) = progress {
@@ -289,7 +297,24 @@ mod tests {
 
     #[test]
     fn offline_or_bad_endpoint_returns_clean_error_without_panicking() {
-        let out = check_for_updates_sync("not-a-url", "1.0.0");
+        let out = check_for_updates_sync("not-a-url", "1.0.1");
         assert!(matches!(out, UpdateCheckOutcome::OfflineOrError(_)));
+    }
+
+    #[test]
+    fn github_release_json_v101_matches_current_version_and_setup_exe() {
+        let payload = r#"{
+            "tag_name": "v1.0.1",
+            "html_url": "https://github.com/hertzwaG/Orpheus/releases/tag/v1.0.1",
+            "body": "Orpheus v1.0.1 release.",
+            "assets": [
+                { "name": "Orpheus-v1.0.1-Setup.exe", "browser_download_url": "https://github.com/hertzwaG/Orpheus/releases/download/v1.0.1/Orpheus-v1.0.1-Setup.exe" }
+            ]
+        }"#;
+        let info = parse_github_release_json(payload).unwrap();
+        assert_eq!(parse_semver(&info.tag_name), Some((1, 0, 1)));
+        assert_eq!(info.version, "1.0.1");
+        assert!(!is_newer_version("1.0.1", &info.version));
+        assert_eq!(info.download_url.as_deref(), Some("https://github.com/hertzwaG/Orpheus/releases/download/v1.0.1/Orpheus-v1.0.1-Setup.exe"));
     }
 }

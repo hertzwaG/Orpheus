@@ -27,6 +27,12 @@ pub(crate) struct Runtime {
     repaint: Option<egui::Context>,
 }
 
+impl Runtime {
+    pub(crate) fn is_busy(&self) -> bool {
+        self.check_requested || self.pending_rx.is_some() || self.install_rx.is_some()
+    }
+}
+
 impl FilmcraftApp {
     /// Whether the app asks for a newer release when it starts (off until the desktop app turns it on).
     pub fn set_startup_update_check(&mut self, on: bool) {
@@ -203,11 +209,10 @@ pub(crate) fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         });
                     }
                     Some(UpdateCheckOutcome::OfflineOrError(msg)) => {
-                        ui.label(tl!("Could not reach the update server (offline or timed out)."));
-                        ui.label(egui::RichText::new(msg).small().color(app.tokens.text_dim));
+                        ui.label(egui::RichText::new(msg).color(app.tokens.text));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
-                            if ui.button(tl!("Open Download Page")).clicked() {
+                            if ui.button(tl!("Open Releases Page")).clicked() {
                                 action_open_url = Some(DEFAULT_LATEST_RELEASE_PAGE_URL.to_string());
                             }
                             if ui.button(tl!("Check Again")).clicked() {

@@ -8,3 +8,5 @@ plan/
 .claude/worktrees/
 __pycache__/
 dist/
+
+orpheus.exe
