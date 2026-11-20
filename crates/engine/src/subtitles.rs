@@ -1312,11 +1312,18 @@ fn status_cmd(_: &mut Session, _: &Value) -> Result<Value> {
 
 const WHISPER_LATEST_RELEASE_API_URL: &str = "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest";
 const WHISPER_RELEASES_API_URL: &str = "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=5";
+const WHISPER_VULKAN_LATEST_API_URL: &str = "https://api.github.com/repos/jerryshell/whisper.cpp-windows-vulkan-bin/releases/latest";
+const WHISPER_VULKAN_FALLBACK_ZIP_URL: &str =
+    "https://github.com/jerryshell/whisper.cpp-windows-vulkan-bin/releases/download/v1.0.0/whisper.cpp-windows-vulkan.zip";
 const WHISPER_FALLBACK_ZIP_URL: &str = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip";
 
 /// Parse GitHub Releases API JSON (single release or array of releases) for a Windows x64
 /// `whisper.cpp` archive URL, preferring Vulkan-enabled builds if present.
 pub fn resolve_whisper_archive_url_from_json(json_str: &str) -> Option<String> {
+    resolve_whisper_archive_url_from_json_with_mode(json_str, false)
+}
+
+fn resolve_whisper_archive_url_from_json_with_mode(json_str: &str, vulkan_only: bool) -> Option<String> {
     let val = serde_json::from_str::<Value>(json_str).ok()?;
     let releases: Vec<&Value> = match val.as_array() {
         Some(arr) => arr.iter().collect(),
@@ -1331,10 +1338,10 @@ pub fn resolve_whisper_archive_url_from_json(json_str: &str) -> Option<String> {
             if !(url.starts_with("https://") || url.starts_with("http://")) || !name.ends_with(".zip") {
                 continue;
             }
-            if name.contains("vulkan") && name.contains("x64") {
+            if name.contains("vulkan") && (name.contains("x64") || name.contains("win")) {
                 return Some(url.to_string());
             }
-            if (name == "whisper-bin-x64.zip" || name.contains("bin-x64")) && fallback.is_none() {
+            if !vulkan_only && (name == "whisper-bin-x64.zip" || name.contains("bin-x64")) && fallback.is_none() {
                 fallback = Some(url.to_string());
             }
         }
@@ -1350,15 +1357,19 @@ fn resolve_whisper_archive_url() -> String {
         return env_url.trim().to_string();
     }
     let agent = crate::updater::build_http_agent(6, 10);
-    for api_url in [WHISPER_LATEST_RELEASE_API_URL, WHISPER_RELEASES_API_URL] {
+    // Prefer official ggml-org/whisper.cpp only when it publishes a Vulkan Windows x64 zip;
+    // otherwise use the dedicated Windows Vulkan build (includes ggml-vulkan.dll).
+    for (api_url, vulkan_only) in
+        [(WHISPER_LATEST_RELEASE_API_URL, true), (WHISPER_RELEASES_API_URL, true), (WHISPER_VULKAN_LATEST_API_URL, true), (WHISPER_RELEASES_API_URL, false)]
+    {
         if let Ok(resp) = agent.get(api_url).header("Accept", "application/vnd.github+json").call()
             && let Ok(body) = resp.into_body().read_to_string()
-            && let Some(url) = resolve_whisper_archive_url_from_json(&body)
+            && let Some(url) = resolve_whisper_archive_url_from_json_with_mode(&body, vulkan_only)
         {
             return url;
         }
     }
-    WHISPER_FALLBACK_ZIP_URL.to_string()
+    if cfg!(windows) { WHISPER_VULKAN_FALLBACK_ZIP_URL.to_string() } else { WHISPER_FALLBACK_ZIP_URL.to_string() }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1453,9 +1464,12 @@ fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::
 
     let target_cli = bin_dir.join(WHISPER_CLI_NAME);
     if !target_cli.is_file() {
-        let fallback_main = bin_dir.join(if cfg!(windows) { "main.exe" } else { "main" });
-        if fallback_main.is_file() {
-            std::fs::rename(&fallback_main, &target_cli).map_err(|e| format!("Failed renaming main executable: {e}"))?;
+        for alt in if cfg!(windows) { ["main.exe", "whisper.exe"] } else { ["main", "whisper"] } {
+            let candidate = bin_dir.join(alt);
+            if candidate.is_file() {
+                std::fs::rename(&candidate, &target_cli).map_err(|e| format!("Failed renaming {alt}: {e}"))?;
+                break;
+            }
         }
     }
     if !target_cli.is_file() {
@@ -1465,7 +1479,8 @@ fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::
 }
 
 fn download_engine_cmd(s: &mut Session, p: &Value) -> Result<Value> {
-    if resolve_whisper_cli().is_some() {
+    let force = bool_p(p, "force").unwrap_or(false);
+    if !force && resolve_whisper_cli().is_some_and(|cli| vulkan_dll_alongside(&cli)) {
         return Ok(json!({ "installed": true }));
     }
     let bin_dir = install_bin_dir().ok_or_else(|| bad("ai.downloadSubtitleEngine", "Cannot determine %APPDATA%\\Orpheus\\bin directory"))?;
@@ -1668,7 +1683,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
             label: "Download AI Engine (whisper-cli)",
             menu: &[],
             shortcut: None,
-            params: r#"{"wait":bool?}"#,
+            params: r#"{"force":bool?,"wait":bool?}"#,
             enabled: always,
             run: download_engine_cmd,
             journal: false,

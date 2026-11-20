@@ -2157,8 +2157,25 @@ fn draw_subtitles_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, st
 }
 
 fn draw_cli_status(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, status: &SubtitleStatus) {
+    if let Some(prog) = active_job_progress(app, app.ui.ai_tools.subtitle_engine_download_job) {
+        let shown = nonblocking_progress_status(&prog, tl!("Downloading Whisper AI engine…"));
+        draw_job_bar(ui, &mut app.auto, t, prog.fraction(), &shown, &prog, "ai.subtitles.cancelEngine");
+        return;
+    }
     if status.cli_found {
         draw_ai_ready_pill(ui, &mut app.auto, t, app.ui.dark, "ai.subtitles.cliStatus");
+        if !status.vulkan_dll_found && status.recommendation.recommended == SubtitleComputeDevice::Gpu {
+            ui.add_space(2.0);
+            let upgrade_btn = ui.small_button(tl!("Reinstall / Upgrade to GPU Engine"));
+            app.auto.add("ai.subtitles.upgradeGpuEngine", upgrade_btn.rect, tl!("Reinstall / Upgrade to GPU Engine"));
+            if upgrade_btn.on_hover_text(tl!("Download the Vulkan-accelerated whisper-cli.exe and ggml-vulkan.dll into %APPDATA%\\Orpheus\\bin\\")).clicked() {
+                let ctx = ui.ctx().clone();
+                let _ = crate::menus::invoke(app, &ctx, "ai.downloadSubtitleEngine", json!({"force": true}));
+            }
+            if let Some(err) = &app.ui.ai_tools.subtitle_engine_download_error {
+                ui.add(egui::Label::new(egui::RichText::new(err).font(Tokens::ui(10.0)).color(t.danger)).wrap());
+            }
+        }
     } else {
         let title = tl!("Orpheus AI engine not found");
         let hint = tl!("Place whisper-cli.exe next to Orpheus or in %APPDATA%\\Orpheus\\bin\\whisper-cli.exe");
@@ -2171,20 +2188,15 @@ fn draw_cli_status(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, status
                 ui.set_width((ui.available_width() - 10.0).max(40.0));
                 ui.label(egui::RichText::new(title).font(Tokens::semibold(10.5)).color(WARN_AMBER));
                 ui.label(egui::RichText::new(hint).font(Tokens::ui(10.0)).color(t.text_dim));
-                if let Some(prog) = active_job_progress(app, app.ui.ai_tools.subtitle_engine_download_job) {
-                    let shown = nonblocking_progress_status(&prog, tl!("Downloading Whisper AI engine…"));
-                    draw_job_bar(ui, &mut app.auto, t, prog.fraction(), &shown, &prog, "ai.subtitles.cancelEngine");
-                } else {
-                    ui.add_space(3.0);
-                    let dl_btn = ui.button(tl!("Download AI Engine"));
-                    app.auto.add("ai.subtitles.downloadEngine", dl_btn.rect, tl!("Download AI Engine"));
-                    if dl_btn.on_hover_text(tl!("Download whisper-cli.exe and runtime DLLs into %APPDATA%\\Orpheus\\bin\\")).clicked() {
-                        let ctx = ui.ctx().clone();
-                        let _ = crate::menus::invoke(app, &ctx, "ai.downloadSubtitleEngine", json!({}));
-                    }
-                    if let Some(err) = &app.ui.ai_tools.subtitle_engine_download_error {
-                        ui.add(egui::Label::new(egui::RichText::new(err).font(Tokens::ui(10.0)).color(t.danger)).wrap());
-                    }
+                ui.add_space(3.0);
+                let dl_btn = ui.button(tl!("Download AI Engine"));
+                app.auto.add("ai.subtitles.downloadEngine", dl_btn.rect, tl!("Download AI Engine"));
+                if dl_btn.on_hover_text(tl!("Download whisper-cli.exe and ggml-vulkan.dll into %APPDATA%\\Orpheus\\bin\\")).clicked() {
+                    let ctx = ui.ctx().clone();
+                    let _ = crate::menus::invoke(app, &ctx, "ai.downloadSubtitleEngine", json!({"force": true}));
+                }
+                if let Some(err) = &app.ui.ai_tools.subtitle_engine_download_error {
+                    ui.add(egui::Label::new(egui::RichText::new(err).font(Tokens::ui(10.0)).color(t.danger)).wrap());
                 }
             });
         app.auto.add("ai.subtitles.cliStatus", resp.response.rect, title);
