@@ -107,9 +107,31 @@ pub struct DirectorySource {
 }
 
 impl DirectorySource {
-    /// The platform's standard font folders.
+    /// The user's custom fonts folder (`%APPDATA%\Orpheus\fonts` on Windows).
+    pub fn custom_fonts_dir() -> Option<PathBuf> {
+        #[cfg(windows)]
+        if let Some(a) = std::env::var_os("APPDATA").filter(|v| !v.is_empty()) {
+            return Some(PathBuf::from(a).join("Orpheus").join("fonts"));
+        }
+        #[cfg(not(windows))]
+        if let Some(h) = std::env::var_os("HOME").filter(|v| !v.is_empty()) {
+            return Some(PathBuf::from(h).join(".local/share/Orpheus/fonts"));
+        }
+        None
+    }
+
+    /// The platform's standard font folders, plus bundled `fonts/` and user custom fonts.
     pub fn system() -> Self {
         let mut dirs: Vec<PathBuf> = Vec::new();
+        if let Ok(exe) = std::env::current_exe()
+            && let Some(exe_dir) = exe.parent()
+        {
+            dirs.push(exe_dir.join("fonts"));
+        }
+        dirs.push(PathBuf::from("assets/fonts"));
+        if let Some(custom) = Self::custom_fonts_dir() {
+            dirs.push(custom);
+        }
         let home = std::env::var_os("HOME").map(PathBuf::from);
         // Fonts activated through Adobe Fonts (Creative Cloud) live in a CoreSync folder that the
         // OS font manager lists but the standard folders don't hold (#1878); on Windows the files
@@ -441,6 +463,18 @@ pub fn scan_system() -> usize {
     let n = if cfg!(target_arch = "wasm32") { 0 } else { add_source(&DirectorySource::system()) };
     db().write().unwrap_or_else(PoisonError::into_inner).scanned = true;
     n
+}
+
+pub fn custom_fonts_dir() -> Option<PathBuf> {
+    DirectorySource::custom_fonts_dir()
+}
+
+pub fn rescan_custom_fonts() -> usize {
+    let Some(dir) = custom_fonts_dir() else { return 0 };
+    if !dir.is_dir() || cfg!(target_arch = "wasm32") {
+        return 0;
+    }
+    add_source(&DirectorySource { dirs: vec![dir] })
 }
 
 pub fn system_scanned() -> bool {

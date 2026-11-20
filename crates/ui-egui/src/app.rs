@@ -32,6 +32,12 @@ impl FilmcraftApp {
         let ime_document_epoch = session.document_epoch;
         let ime_active_sequence = session.state.active_sequence;
         let start_screen = session.project.items.is_empty() && session.state.active_sequence.is_none();
+        #[cfg(not(target_arch = "wasm32"))]
+        if !filmcraft_text::fonts::system_scanned() {
+            std::thread::spawn(|| {
+                let _ = std::panic::catch_unwind(filmcraft_text::fonts::scan_system);
+            });
+        }
         Self {
             session,
             ui: UiState { language, start_screen, ..UiState::default() },

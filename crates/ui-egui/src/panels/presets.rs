@@ -88,7 +88,7 @@ fn preset_folder_row(
     app.auto.add(&format!("effects.presetFolder.{key}"), r, label);
 
     resp.context_menu(|ui| {
-        if ui.button(tl!("Import Presets…")).clicked() {
+        if ui.button(tl!("Import Premiere Preset (.prfpset)")).clicked() {
             *action = Some(("presets.import".to_string(), String::new()));
             ui.close();
         }
@@ -153,7 +153,7 @@ fn preset_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, p: &EffectPreset, depth
             *action = Some(("presets.revealFolder".to_string(), String::new()));
             ui.close();
         }
-        if ui.button(tl!("Import Presets…")).clicked() {
+        if ui.button(tl!("Import Premiere Preset (.prfpset)")).clicked() {
             *action = Some(("presets.import".to_string(), String::new()));
             ui.close();
         }
@@ -192,7 +192,7 @@ fn render_presets(
 pub fn folder_rows(app: &mut FilmcraftApp, ui: &mut egui::Ui, filter: &str) -> Option<(String, String)> {
     let mut action = None;
     if filter.is_empty() {
-        let import = action_row(app, ui, "effects.presets.import", Icon::Import, tl!("Import Presets…"));
+        let import = action_row(app, ui, "effects.presets.import", Icon::Import, tl!("Import Premiere Preset (.prfpset)"));
         if import {
             action = Some(("presets.import".to_string(), String::new()));
         }

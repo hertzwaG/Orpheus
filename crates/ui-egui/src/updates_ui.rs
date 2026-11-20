@@ -3,7 +3,7 @@
 use std::sync::{Arc, mpsc};
 
 use filmcraft_engine::updater::{
-    DEFAULT_RELEASES_PAGE_URL, ORPHEUS_VERSION, ReleaseInfo, UpdateCheckOutcome, UpdateDownloadProgress, cleanup_stale_backup_exe,
+    DEFAULT_LATEST_RELEASE_PAGE_URL, ORPHEUS_VERSION, ReleaseInfo, UpdateCheckOutcome, UpdateDownloadProgress, cleanup_stale_backup_exe,
     install_windows_update_and_relaunch_with_progress, resolve_update_endpoint, spawn_update_check,
 };
 use serde_json::Value;
@@ -188,11 +188,14 @@ pub(crate) fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         });
                     }
                     Some(UpdateCheckOutcome::UpToDate(v)) => {
-                        ui.label(tlf!("Orpheus v{ver} is up to date.", ver = v));
+                        ui.label(tlf!("You are on the latest version (v{ver}).", ver = v));
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
                             if ui.button(tl!("Check Again")).clicked() {
                                 action_recheck = true;
+                            }
+                            if ui.button(tl!("Open Releases Page")).clicked() {
+                                action_open_url = Some(DEFAULT_LATEST_RELEASE_PAGE_URL.to_string());
                             }
                             if ui.button(tl!("OK")).clicked() {
                                 action_close = true;
@@ -205,7 +208,7 @@ pub(crate) fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
                             if ui.button(tl!("Open Download Page")).clicked() {
-                                action_open_url = Some(DEFAULT_RELEASES_PAGE_URL.to_string());
+                                action_open_url = Some(DEFAULT_LATEST_RELEASE_PAGE_URL.to_string());
                             }
                             if ui.button(tl!("Check Again")).clicked() {
                                 action_recheck = true;
@@ -302,7 +305,7 @@ pub(crate) fn draw_settings_updates_section(app: &mut FilmcraftApp, ui: &mut egu
                 }
             }
             UpdateCheckOutcome::UpToDate(v) => {
-                ui.label(egui::RichText::new(tlf!("Orpheus v{ver} is up to date.", ver = v)).small().color(t.text_dim));
+                ui.label(egui::RichText::new(tlf!("You are on the latest version (v{ver}).", ver = v)).small().color(t.text_dim));
             }
             UpdateCheckOutcome::OfflineOrError(msg) => {
                 ui.label(egui::RichText::new(msg).small().color(t.text_dim));

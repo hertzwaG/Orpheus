@@ -876,6 +876,14 @@ fn param_value_widget(
             let prefix = format!("effectControls.text.{}.{}.option", idx, pd.id);
             let combo = if pd.id == "font" {
                 craft_ui::ComboBox::from_id_salt(salt).selected_text(current).width(w).height(400.0).show_ui(vui, |ui| {
+                    if ui.button(tl!("Open Custom Fonts Folder")).clicked()
+                        && let Some(dir) = filmcraft_text::fonts::custom_fonts_dir()
+                    {
+                        let _ = std::fs::create_dir_all(&dir);
+                        let _ = crate::panels::menu_dialogs::open_path(app, ui.ctx(), &dir.to_string_lossy(), false);
+                        filmcraft_text::fonts::rescan_custom_fonts();
+                    }
+                    ui.separator();
                     for (f, _) in &fams {
                         let r = ui.selectable_label(f == current, f);
                         app.auto.add(&format!("{prefix}.{f}"), r.rect, f);

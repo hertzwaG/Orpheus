@@ -712,6 +712,16 @@ fn style_strip(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, track_idx: us
             }
         });
         app.auto.add("text.captions.style.font", r.response.rect, "Caption font");
+        let open_fonts_btn =
+            ui.small_button(tl!("Open Custom Fonts Folder")).on_hover_text(tl!("Create and open %APPDATA%\\Orpheus\\fonts\\ to add custom .ttf or .otf fonts"));
+        app.auto.add("text.captions.style.openFontsFolder", open_fonts_btn.rect, "Open Custom Fonts Folder");
+        if open_fonts_btn.clicked()
+            && let Some(dir) = filmcraft_text::fonts::custom_fonts_dir()
+        {
+            let _ = std::fs::create_dir_all(&dir);
+            let _ = crate::panels::menu_dialogs::open_path(app, ui.ctx(), &dir.to_string_lossy(), false);
+            filmcraft_text::fonts::rescan_custom_fonts();
+        }
         // the styles of the track's family, next to the font
         let styles = filmcraft_text::families().into_iter().find(|(f, _)| f.eq_ignore_ascii_case(&st.font)).map(|(_, v)| v).unwrap_or_default();
         let r = craft_ui::ComboBox::from_id_salt(("caption-font-style", tr.id.0)).selected_text(&st.font_style).width(100.0).height(300.0).show_ui(ui, |ui| {

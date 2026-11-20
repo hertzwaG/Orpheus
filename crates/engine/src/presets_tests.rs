@@ -469,3 +469,13 @@ fn import_collision_picks_suffixed_filename() {
     let _ = std::fs::remove_dir_all(&src_named);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn gzip_compressed_prfpset_decodes_cleanly() {
+    use std::io::Write;
+    let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    enc.write_all(SAMPLE_PRFPSET_XML.as_bytes()).unwrap();
+    let gz_bytes = enc.finish().unwrap();
+    let parsed = crate::presets::parse_file_detailed(&gz_bytes).unwrap();
+    assert!(!parsed.presets.is_empty(), "gzip-compressed .prfpset should decode presets");
+}

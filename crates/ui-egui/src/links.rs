@@ -1,9 +1,9 @@
 //! Help and issue links (Help menu, About dialog, documentation links).
 
 /// Upstream repository URL (used for documentation and issue links).
-pub const GITHUB: &str = "https://github.com/storytold/filmcraft";
+pub const GITHUB: &str = "https://github.com/hertzwaG/Orpheus";
 /// Issue tracker URL.
-pub const ISSUES: &str = "https://github.com/storytold/filmcraft/issues";
+pub const ISSUES: &str = "https://github.com/hertzwaG/Orpheus/issues/new";
 /// Central Revolut.me donation URL — update this constant in one place.
 pub const ORPHEUS_DONATE_URL: &str = "https://revolut.me/orpheus";
 

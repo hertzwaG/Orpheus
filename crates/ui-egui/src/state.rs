@@ -255,6 +255,10 @@ pub struct AiToolsState {
     pub subtitle_style: filmcraft_engine::subtitles::SubtitleLengthMode,
     pub subtitle_compute: Option<SubtitleComputeDevice>,
     #[serde(skip)]
+    pub subtitle_engine_download_job: Option<u64>,
+    #[serde(skip)]
+    pub subtitle_engine_download_error: Option<String>,
+    #[serde(skip)]
     pub subtitle_download_job: Option<u64>,
     #[serde(skip)]
     pub subtitle_generate_job: Option<u64>,
@@ -361,6 +365,8 @@ impl Default for AiToolsState {
             subtitle_reels_mode: false,
             subtitle_style: filmcraft_engine::subtitles::SubtitleLengthMode::Sentences,
             subtitle_compute: None,
+            subtitle_engine_download_job: None,
+            subtitle_engine_download_error: None,
             subtitle_download_job: None,
             subtitle_generate_job: None,
             beat_sync_job: None,

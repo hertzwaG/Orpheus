@@ -350,7 +350,7 @@ fn fetch_wikimedia_images(topic: &str, prog: Option<&Progress>) -> Vec<RgbaImage
         .https_only(true)
         .timeout_connect(Some(Duration::from_secs(4)))
         .timeout_recv_response(Some(Duration::from_secs(6)))
-        .user_agent("OrpheusVideoEditor/1.0 (https://github.com/orpheus-editor/orpheus; contact@orpheus-editor.org)")
+        .user_agent("Orpheus/1.0.1 (https://github.com/hertzwaG/Orpheus)")
         .build()
         .new_agent();
 

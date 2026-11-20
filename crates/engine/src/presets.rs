@@ -539,7 +539,21 @@ pub fn parse_file_detailed(bytes: &[u8]) -> std::result::Result<crate::prfpset::
     if bytes.len() as u64 > crate::prfpset::MAX_BYTES {
         return Err(format!("preset file is too large ({} MB; the limit is {} MB)", bytes.len() / (1024 * 1024), crate::prfpset::MAX_BYTES / (1024 * 1024)));
     }
-    let text = std::str::from_utf8(bytes).map_err(|_| "effect presets must be UTF-8 text".to_string())?;
+    let decompressed: Vec<u8>;
+    let payload: &[u8] = if bytes.starts_with(&[0x1f, 0x8b]) {
+        use std::io::Read;
+        let mut gz = flate2::read::GzDecoder::new(bytes).take(crate::prfpset::MAX_BYTES + 1);
+        let mut buf = Vec::new();
+        gz.read_to_end(&mut buf).map_err(|e| format!("corrupt gzip preset archive: {e}"))?;
+        if buf.len() as u64 > crate::prfpset::MAX_BYTES {
+            return Err(format!("decompressed preset file exceeds {} MB limit", crate::prfpset::MAX_BYTES / (1024 * 1024)));
+        }
+        decompressed = buf;
+        &decompressed
+    } else {
+        bytes
+    };
+    let text = std::str::from_utf8(payload).map_err(|_| "effect presets must be UTF-8 text".to_string())?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let trimmed = text.trim_start();
     if trimmed.starts_with('<') {

@@ -932,6 +932,25 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             }
             return r;
         }
+        "ai.downloadSubtitleEngine" => {
+            app.ui.ai_tools.subtitle_engine_download_error = None;
+            let r = app.session.execute(id, params).map_err(|e| e.to_string());
+            match &r {
+                Ok(v) => {
+                    app.ui.ai_tools.subtitle_engine_download_job = v["job"].as_u64();
+                    if v["installed"].as_bool() == Some(true) {
+                        app.ui.status = tl!("AI Engine ready").into();
+                    } else {
+                        app.ui.status = tl!("Downloading Whisper AI engine…").into();
+                    }
+                }
+                Err(e) => {
+                    app.ui.ai_tools.subtitle_engine_download_error = Some(e.clone());
+                    app.ui.status = e.clone();
+                }
+            }
+            return r;
+        }
         "ai.downloadSubtitleModel" => {
             if let Some(obj) = params.as_object_mut() {
                 obj.entry("model".to_string()).or_insert_with(|| json!(app.ui.ai_tools.subtitle_model));

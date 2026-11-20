@@ -317,6 +317,16 @@ pub fn expected_bin_dir() -> Option<PathBuf> {
     crate::autosave::default_data_dir().map(|d| d.join("bin"))
 }
 
+/// Directory where the built-in one-click downloader installs `whisper-cli.exe` and its DLLs
+/// (`%APPDATA%\Orpheus\bin` on Windows, `<data_dir>/bin` otherwise).
+pub fn install_bin_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(appdata) = std::env::var_os("APPDATA").filter(|v| !v.is_empty()).map(PathBuf::from) {
+        return Some(appdata.join("Orpheus").join("bin"));
+    }
+    expected_bin_dir()
+}
+
 /// Resolve `whisper-cli.exe` using `exe_dir` first, then `<data_dir>/bin/`, plus `%APPDATA%\Orpheus\bin\` on Windows.
 pub fn resolve_whisper_cli_with(exe_dir: Option<&Path>, data_dir: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("ORPHEUS_WHISPER_CLI").filter(|v| !v.is_empty()).map(PathBuf::from)
@@ -1299,6 +1309,210 @@ fn status_cmd(_: &mut Session, _: &Value) -> Result<Value> {
     serde_json::to_value(status()).map_err(|e| EngineError::Other(e.to_string()))
 }
 
+const WHISPER_RELEASES_API_URL: &str = "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=5";
+const WHISPER_FALLBACK_ZIP_URL: &str = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip";
+
+/// Parse GitHub Releases API JSON (single release or array of releases) for a Windows x64
+/// `whisper.cpp` archive URL, preferring Vulkan-enabled builds if present.
+pub fn resolve_whisper_archive_url_from_json(json_str: &str) -> Option<String> {
+    let val = serde_json::from_str::<Value>(json_str).ok()?;
+    let releases: Vec<&Value> = match val.as_array() {
+        Some(arr) => arr.iter().collect(),
+        None => vec![&val],
+    };
+    let mut fallback: Option<String> = None;
+    for rel in releases {
+        let Some(assets) = rel.get("assets").and_then(Value::as_array) else { continue };
+        for asset in assets {
+            let name = asset.get("name").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let url = asset.get("browser_download_url").and_then(Value::as_str).unwrap_or("");
+            if !(url.starts_with("https://") || url.starts_with("http://")) || !name.ends_with(".zip") {
+                continue;
+            }
+            if name.contains("vulkan") && name.contains("x64") {
+                return Some(url.to_string());
+            }
+            if name == "whisper-bin-x64.zip" && fallback.is_none() {
+                fallback = Some(url.to_string());
+            }
+        }
+    }
+    fallback
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_whisper_archive_url() -> String {
+    if let Ok(env_url) = std::env::var("ORPHEUS_WHISPER_BIN_URL")
+        && !env_url.trim().is_empty()
+    {
+        return env_url.trim().to_string();
+    }
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_secs(6)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(10)))
+        .user_agent(format!("Orpheus/{}", crate::updater::ORPHEUS_VERSION))
+        .build()
+        .new_agent();
+    if let Ok(resp) = agent.get(WHISPER_RELEASES_API_URL).header("Accept", "application/vnd.github+json").call()
+        && let Ok(body) = resp.into_body().read_to_string()
+        && let Some(url) = resolve_whisper_archive_url_from_json(&body)
+    {
+        return url;
+    }
+    WHISPER_FALLBACK_ZIP_URL.to_string()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn collect_bin_files_recursive(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            collect_bin_files_recursive(&p, out);
+        } else if p.is_file()
+            && let Some(ext) = p.extension().and_then(|e| e.to_str()).map(|s| s.to_ascii_lowercase())
+            && matches!(ext.as_str(), "exe" | "dll" | "so" | "dylib")
+        {
+            out.push(p);
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn download_and_extract_whisper_engine(bin_dir: &Path, prog: &Progress) -> std::result::Result<u64, String> {
+    use std::io::{Read, Write};
+
+    std::fs::create_dir_all(bin_dir).map_err(|e| format!("Failed creating {}: {e}", bin_dir.display()))?;
+    *lock(&prog.status) = "Querying whisper.cpp release…".into();
+    let url = resolve_whisper_archive_url();
+
+    *lock(&prog.status) = "Downloading Whisper AI engine…".into();
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_secs(10)))
+        .timeout_recv_response(Some(std::time::Duration::from_secs(180)))
+        .user_agent(format!("Orpheus/{}", crate::updater::ORPHEUS_VERSION))
+        .build()
+        .new_agent();
+    let resp = agent.get(&url).call().map_err(|e| format!("Engine download failed: {e}"))?;
+    let total_len = resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|s| s.trim().parse::<u64>().ok()).unwrap_or(0);
+    if total_len > 0 {
+        prog.total.store(total_len, Ordering::Relaxed);
+    }
+
+    let zip_part = bin_dir.join("whisper-engine.zip.part");
+    let mut file = std::fs::File::create(&zip_part).map_err(|e| format!("Failed creating temp archive: {e}"))?;
+    let mut reader = resp.into_body().into_reader().take(256 * 1024 * 1024);
+    let mut buf = [0u8; 64 * 1024];
+    let mut downloaded = 0u64;
+    loop {
+        if prog.cancel.load(Ordering::Relaxed) {
+            drop(file);
+            let _ = std::fs::remove_file(&zip_part);
+            return Err("Cancelled".into());
+        }
+        let n = reader.read(&mut buf).map_err(|e| format!("Failed reading engine archive: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n]).map_err(|e| format!("Failed writing engine archive: {e}"))?;
+        downloaded = downloaded.saturating_add(n as u64);
+        prog.done.store(downloaded, Ordering::Relaxed);
+    }
+    drop(file);
+    if downloaded < 64 * 1024 {
+        let _ = std::fs::remove_file(&zip_part);
+        return Err("Downloaded engine archive appears empty or truncated".into());
+    }
+
+    *lock(&prog.status) = "Extracting whisper-cli.exe and DLLs…".into();
+    let extract_tmp = bin_dir.join("_extract_tmp");
+    let _ = std::fs::remove_dir_all(&extract_tmp);
+    std::fs::create_dir_all(&extract_tmp).map_err(|e| format!("Failed creating extract directory: {e}"))?;
+
+    let mut tar_cmd = std::process::Command::new("tar");
+    tar_cmd.arg("-xf").arg(&zip_part).arg("-C").arg(&extract_tmp);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        tar_cmd.creation_flags(0x0800_0000);
+    }
+    let out = tar_cmd.output().map_err(|e| format!("Failed launching archive extractor: {e}"))?;
+    let _ = std::fs::remove_file(&zip_part);
+    if !out.status.success() {
+        let _ = std::fs::remove_dir_all(&extract_tmp);
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(format!("Failed extracting engine archive: {}", err.trim()));
+    }
+
+    let mut files = Vec::new();
+    collect_bin_files_recursive(&extract_tmp, &mut files);
+    for src in files {
+        if let Some(name) = src.file_name() {
+            let dest = bin_dir.join(name);
+            let _ = std::fs::remove_file(&dest);
+            if std::fs::rename(&src, &dest).is_err() {
+                std::fs::copy(&src, &dest).map_err(|e| format!("Failed installing {}: {e}", name.to_string_lossy()))?;
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&extract_tmp);
+
+    if !bin_dir.join(WHISPER_CLI_NAME).is_file() {
+        return Err(format!("{WHISPER_CLI_NAME} was not found inside the downloaded archive"));
+    }
+    Ok(downloaded)
+}
+
+fn download_engine_cmd(s: &mut Session, p: &Value) -> Result<Value> {
+    if resolve_whisper_cli().is_some() {
+        return Ok(json!({ "installed": true }));
+    }
+    let bin_dir = install_bin_dir().ok_or_else(|| bad("ai.downloadSubtitleEngine", "Cannot determine %APPDATA%\\Orpheus\\bin directory"))?;
+
+    let id = next_job_id(s);
+    let prog = Arc::new(Progress::default());
+    *lock(&prog.status) = "Preparing Whisper AI engine download…".into();
+    let result: Arc<Mutex<Option<std::result::Result<Report, String>>>> = Arc::default();
+    s.jobs.push(Job { id, label: "Downloading Whisper AI Engine".into(), progress: prog.clone(), result: result.clone() });
+
+    let wait = bool_p(p, "wait").unwrap_or(false);
+    let run = crate::export_tools::guard_job(prog.clone(), result.clone(), move || {
+        let t0 = web_time::Instant::now();
+        #[cfg(not(target_arch = "wasm32"))]
+        let r = download_and_extract_whisper_engine(&bin_dir, &prog).map(|bytes| Report {
+            path: bin_dir.join(WHISPER_CLI_NAME).to_string_lossy().into_owned(),
+            frames: 0,
+            seconds: t0.elapsed().as_secs_f64(),
+            bytes,
+            render_fps: 0.0,
+            ..Default::default()
+        });
+        #[cfg(target_arch = "wasm32")]
+        let r: std::result::Result<Report, String> = {
+            let _ = (&bin_dir, &t0);
+            Err("Downloading whisper-cli is unavailable on wasm32".into())
+        };
+        if let Err(ref e) = r {
+            *lock(&prog.error) = Some(e.clone());
+            *lock(&prog.status) = e.clone();
+        } else {
+            *lock(&prog.status) = "AI Engine ready".into();
+        }
+        *lock(&result) = Some(r);
+        prog.finished.store(true, Ordering::Relaxed);
+    });
+
+    if wait || cfg!(target_arch = "wasm32") {
+        run();
+    } else {
+        std::thread::Builder::new().name("orpheus-whisper-engine-download".into()).spawn(run).map_err(|e| EngineError::Other(e.to_string()))?;
+    }
+    if let Some(Err(e)) = s.jobs.iter().find(|j| j.id == id).and_then(|j| lock(&j.result).clone()) {
+        return Err(EngineError::Other(e));
+    }
+    Ok(json!({ "job": id, "installed": false }))
+}
+
 pub(crate) fn next_job_id(s: &Session) -> u64 {
     s.jobs.iter().map(|j| j.id).max().unwrap_or(0) + 1
 }
@@ -1449,6 +1663,17 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
             named: crate::commands::NamedKeys::NONE,
         },
         CommandSpec {
+            id: "ai.downloadSubtitleEngine",
+            label: "Download AI Engine (whisper-cli)",
+            menu: &[],
+            shortcut: None,
+            params: r#"{"wait":bool?}"#,
+            enabled: always,
+            run: download_engine_cmd,
+            journal: false,
+            named: crate::commands::NamedKeys::NONE,
+        },
+        CommandSpec {
             id: "ai.downloadSubtitleModel",
             label: "Download Subtitle Model",
             menu: &[],
@@ -1476,6 +1701,27 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn whisper_archive_json_prefers_vulkan_and_falls_back_to_win64_zip() {
+        let with_vulkan = r#"[{
+            "tag_name": "v1.9.5",
+            "assets": [
+                { "name": "whisper-bin-x64.zip", "browser_download_url": "https://example.com/whisper-bin-x64.zip" },
+                { "name": "whisper-vulkan-bin-x64.zip", "browser_download_url": "https://example.com/whisper-vulkan-bin-x64.zip" }
+            ]
+        }]"#;
+        assert_eq!(resolve_whisper_archive_url_from_json(with_vulkan).as_deref(), Some("https://example.com/whisper-vulkan-bin-x64.zip"));
+
+        let cpu_only = r#"[{
+            "tag_name": "b5454",
+            "assets": [
+                { "name": "whisper-bin-Win32.zip", "browser_download_url": "https://example.com/win32.zip" },
+                { "name": "whisper-bin-x64.zip", "browser_download_url": "https://example.com/whisper-bin-x64.zip" }
+            ]
+        }]"#;
+        assert_eq!(resolve_whisper_archive_url_from_json(cpu_only).as_deref(), Some("https://example.com/whisper-bin-x64.zip"));
+    }
 
     const SAMPLE_OJF_BG: &str = r#"{
         "result": { "language": "bg" },

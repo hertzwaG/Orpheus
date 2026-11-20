@@ -94,6 +94,24 @@ fn poll_vod_chapters_job(app: &mut FilmcraftApp) {
 }
 
 pub fn poll_jobs(app: &mut FilmcraftApp) {
+    if let Some(id) = app.ui.ai_tools.subtitle_engine_download_job {
+        match check_job_finished(app, id) {
+            None => app.ui.ai_tools.subtitle_engine_download_job = None,
+            Some(FinishedOutcome::Running) => {}
+            Some(FinishedOutcome::Ok(_)) => {
+                app.ui.ai_tools.subtitle_engine_download_job = None;
+                app.ui.ai_tools.subtitle_engine_download_error = None;
+                app.ui.status = tl!("AI Engine ready").into();
+                app.ui.ai_tools.push_toast(tl!("AI Subtitles"), app.ui.status.clone(), false);
+            }
+            Some(FinishedOutcome::Err(e)) => {
+                app.ui.ai_tools.subtitle_engine_download_job = None;
+                app.ui.ai_tools.subtitle_engine_download_error = Some(e.clone());
+                app.ui.status = tlf!("AI Engine download failed: {err}", err = e);
+                app.ui.ai_tools.push_toast(tl!("AI Subtitles"), app.ui.status.clone(), true);
+            }
+        }
+    }
     if let Some(id) = app.ui.ai_tools.subtitle_download_job {
         match check_job_finished(app, id) {
             None => app.ui.ai_tools.subtitle_download_job = None,
@@ -313,6 +331,7 @@ pub fn show_toast_overlay(app: &mut FilmcraftApp, ctx: &egui::Context) {
     let running_job = app.ui.ai_tools.has_active_mutation_job()
         || app.ui.ai_tools.bg_model_download_job.is_some()
         || app.ui.ai_tools.ai_models_download_job.is_some()
+        || app.ui.ai_tools.subtitle_engine_download_job.is_some()
         || app.ui.ai_tools.subtitle_download_job.is_some();
     let queued_count = app.ui.ai_tools.job_queue.pending.len();
     let now = ctx.input(|i| i.time);
@@ -417,7 +436,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner).layout(egui::Layout::top_down(egui::Align::Min)));
     child.set_clip_rect(inner);
 
-    let refresh_status = app.ui.ai_tools.subtitle_download_job.is_none();
+    let refresh_status = app.ui.ai_tools.subtitle_download_job.is_none() && app.ui.ai_tools.subtitle_engine_download_job.is_none();
     let status = cached_subtitle_status(ui.ctx(), !refresh_status);
 
     draw_section_tabs(app, &mut child, &t);
@@ -2152,6 +2171,21 @@ fn draw_cli_status(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, status
                 ui.set_width((ui.available_width() - 10.0).max(40.0));
                 ui.label(egui::RichText::new(title).font(Tokens::semibold(10.5)).color(WARN_AMBER));
                 ui.label(egui::RichText::new(hint).font(Tokens::ui(10.0)).color(t.text_dim));
+                if let Some(prog) = active_job_progress(app, app.ui.ai_tools.subtitle_engine_download_job) {
+                    let shown = nonblocking_progress_status(&prog, tl!("Downloading Whisper AI engine…"));
+                    draw_job_bar(ui, &mut app.auto, t, prog.fraction(), &shown, &prog, "ai.subtitles.cancelEngine");
+                } else {
+                    ui.add_space(3.0);
+                    let dl_btn = ui.button(tl!("Download AI Engine"));
+                    app.auto.add("ai.subtitles.downloadEngine", dl_btn.rect, tl!("Download AI Engine"));
+                    if dl_btn.on_hover_text(tl!("Download whisper-cli.exe and runtime DLLs into %APPDATA%\\Orpheus\\bin\\")).clicked() {
+                        let ctx = ui.ctx().clone();
+                        let _ = crate::menus::invoke(app, &ctx, "ai.downloadSubtitleEngine", json!({}));
+                    }
+                    if let Some(err) = &app.ui.ai_tools.subtitle_engine_download_error {
+                        ui.add(egui::Label::new(egui::RichText::new(err).font(Tokens::ui(10.0)).color(t.danger)).wrap());
+                    }
+                }
             });
         app.auto.add("ai.subtitles.cliStatus", resp.response.rect, title);
     }

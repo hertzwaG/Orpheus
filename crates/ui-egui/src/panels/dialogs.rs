@@ -508,9 +508,9 @@ fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
     let (r, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 32.0), egui::Sense::hover());
     crate::brand::paint_wordmark(ui, egui::pos2(r.min.x, r.center().y), 21.0, app.ui.dark);
     ui.add_space(6.0);
-    ui.heading(tl!("Orpheus v1.0.0"));
+    ui.heading(format!("Orpheus v{}", filmcraft_engine::updater::ORPHEUS_VERSION));
     ui.label(egui::RichText::new(tl!("Native Rust Video Editor & Offline AI Studio")).color(t.text));
-    ui.label(egui::RichText::new(tl!("© 2026 Orpheus. Proprietary — All Rights Reserved.")).small().color(t.text_dim));
+    ui.label(egui::RichText::new(tl!("© 2026 YBV Studios — Orpheus. All Rights Reserved.")).small().color(t.text_dim));
     ui.add_space(10.0);
 
     let action_row = |ui: &mut egui::Ui, auto: &mut crate::automation::Registry, id: &str, icon: Icon, label: &str, tip: &str, primary: bool| -> bool {
@@ -579,7 +579,11 @@ fn about_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
 
 fn documentation_modal(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
     let t = app.tokens;
-    ui.label(egui::RichText::new(tl!("Orpheus v1.0.0 — Native Rust Video Editor & Offline AI Studio")).strong().color(t.text));
+    ui.label(
+        egui::RichText::new(format!("Orpheus v{} — Native Rust Video Editor & Offline AI Studio", filmcraft_engine::updater::ORPHEUS_VERSION))
+            .strong()
+            .color(t.text),
+    );
     ui.separator();
     egui::ScrollArea::vertical().max_height(450.0).show(ui, |ui| {
         ui.spacing_mut().item_spacing.y = 6.0;
@@ -612,7 +616,7 @@ fn documentation_modal(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
         section(
             ui,
             "4. Licensing & Support",
-            "© 2026 Orpheus. Proprietary — All Rights Reserved. Optional community support: https://revolut.me/orpheus",
+            "© 2026 YBV Studios — Orpheus. All Rights Reserved. Optional community support: https://revolut.me/orpheus",
         );
     });
     ui.separator();

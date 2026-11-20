@@ -194,7 +194,7 @@ fn presets_folder_row(app: &mut FilmcraftApp, ui: &mut egui::Ui, key: &str, dept
     app.auto.add(&format!("effects.folder.{key}"), r, name);
 
     resp.context_menu(|ui| {
-        if ui.button(tl!("Import Presets…")).clicked() {
+        if ui.button(tl!("Import Premiere Preset (.prfpset)")).clicked() {
             *action = Some(("presets.import".to_string(), String::new()));
             ui.close();
         }
