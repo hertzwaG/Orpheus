@@ -889,6 +889,77 @@ fn read_log_tail(path: &Path) -> String {
     String::from_utf8_lossy(&bytes[tail_start..]).lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim().to_string()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn read_log_head(path: &Path, max_lines: usize) -> String {
+    let Ok(bytes) = std::fs::read(path) else { return String::new() };
+    let head_end = bytes.len().min(4096);
+    String::from_utf8_lossy(&bytes[..head_end]).lines().map(str::trim).filter(|l| !l.is_empty()).take(max_lines).collect::<Vec<_>>().join(" | ")
+}
+
+fn parse_srt_timestamp_ms(ts: &str) -> Option<i64> {
+    let clean = ts.trim().replace(',', ".");
+    let mut parts = clean.split(':');
+    let h: i64 = parts.next()?.trim().parse().ok()?;
+    let m: i64 = parts.next()?.trim().parse().ok()?;
+    let sec_part = parts.next()?.trim();
+    let (s_str, ms_str) = sec_part.split_once('.').unwrap_or((sec_part, "0"));
+    let s: i64 = s_str.parse().ok()?;
+    let ms_digits: String = ms_str.chars().take(3).collect();
+    let mut ms: i64 = ms_digits.parse().ok()?;
+    for _ in ms_digits.len()..3 {
+        ms = ms.saturating_mul(10);
+    }
+    if h < 0 || m < 0 || s < 0 || ms < 0 {
+        return None;
+    }
+    Some(h.saturating_mul(3_600_000).saturating_add(m.saturating_mul(60_000)).saturating_add(s.saturating_mul(1_000)).saturating_add(ms))
+}
+
+/// Parse standard `.srt` subtitle output into `WhisperSegment`s as a fallback when JSON is absent.
+pub fn parse_whisper_srt(bytes: &[u8]) -> std::result::Result<Vec<WhisperSegment>, String> {
+    let raw = String::from_utf8_lossy(bytes);
+    let mut segments = Vec::new();
+    for block in raw.replace("\r\n", "\n").split("\n\n") {
+        let lines: Vec<&str> = block.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+        let Some(arrow_idx) = lines.iter().position(|l| l.contains("-->")) else { continue };
+        let Some((from_str, to_str)) = lines[arrow_idx].split_once("-->") else { continue };
+        let Some(from_ms) = parse_srt_timestamp_ms(from_str) else { continue };
+        let Some(to_ms) = parse_srt_timestamp_ms(to_str) else { continue };
+        let text = lines[arrow_idx + 1..].join(" ").trim().to_string();
+        if text.is_empty() || is_whisper_meta_token(&text) {
+            continue;
+        }
+        let words = proportional_words(&text, from_ms, to_ms.max(from_ms));
+        if !words.is_empty() {
+            segments.push(WhisperSegment { from_ms, to_ms: to_ms.max(from_ms), text, words });
+        }
+    }
+    Ok(segments)
+}
+
+/// Parse timestamped `[HH:MM:SS.mmm --> HH:MM:SS.mmm] text` lines from `whisper-cli` stdout/log.
+pub fn parse_whisper_stdout(bytes: &[u8]) -> Vec<WhisperSegment> {
+    let raw = String::from_utf8_lossy(bytes);
+    let mut segments = Vec::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        let Some(rest) = trimmed.strip_prefix('[') else { continue };
+        let Some((span, text_raw)) = rest.split_once(']') else { continue };
+        let Some((from_str, to_str)) = span.split_once("-->") else { continue };
+        let Some(from_ms) = parse_srt_timestamp_ms(from_str) else { continue };
+        let Some(to_ms) = parse_srt_timestamp_ms(to_str) else { continue };
+        let text = text_raw.trim().to_string();
+        if text.is_empty() || is_whisper_meta_token(&text) {
+            continue;
+        }
+        let words = proportional_words(&text, from_ms, to_ms.max(from_ms));
+        if !words.is_empty() {
+            segments.push(WhisperSegment { from_ms, to_ms: to_ms.max(from_ms), text, words });
+        }
+    }
+    segments
+}
+
 pub(crate) struct WhisperRunConfig<'a> {
     pub(crate) model_path: &'a Path,
     pub(crate) language: &'a str,
@@ -960,54 +1031,35 @@ pub(crate) fn resolve_whisper_run(cmd: &str, p: &Value) -> Result<ResolvedWhispe
     Ok(ResolvedWhisperConfig { language, mode, cli_path, model_path, compute })
 }
 
-/// Build CLI argument list for `whisper-cli.exe` (`--beam-size 5`, language `--prompt`, and `--no-gpu` on CPU).
+/// Build CLI argument list for `whisper-cli.exe` using only standard supported flags
+/// (`-m`, `-f`, `-l`, `-oj`, `-of`, and `-ng` when CPU mode is explicitly selected).
 pub fn whisper_cli_args(
     model_path: &Path,
     language: &str,
     wav_path: &Path,
     out_prefix: &Path,
-    mode: SubtitleLengthMode,
+    _mode: SubtitleLengthMode,
     compute: SubtitleComputeDevice,
 ) -> Vec<std::ffi::OsString> {
-    let max_len = match mode {
-        SubtitleLengthMode::ReelsShort => "24",
-        SubtitleLengthMode::TikTokCenterPop => "14",
-        SubtitleLengthMode::Sentences => "84",
-    };
     let mut args = vec![
         std::ffi::OsString::from("-m"),
         model_path.as_os_str().to_owned(),
-        std::ffi::OsString::from("-l"),
-        std::ffi::OsString::from(language),
         std::ffi::OsString::from("-f"),
         wav_path.as_os_str().to_owned(),
-        std::ffi::OsString::from("-ojf"),
+        std::ffi::OsString::from("-l"),
+        std::ffi::OsString::from(language),
+        std::ffi::OsString::from("-oj"),
         std::ffi::OsString::from("-of"),
         out_prefix.as_os_str().to_owned(),
-        std::ffi::OsString::from("-ml"),
-        std::ffi::OsString::from(max_len),
-        std::ffi::OsString::from("--beam-size"),
-        std::ffi::OsString::from(filmcraft_speech::WHISPER_BEAM_SIZE.to_string()),
-        // Prevent endless repetition loops and hallucinations on silence/music.
-        std::ffi::OsString::from("-nc"),
-        std::ffi::OsString::from("-nth"),
-        std::ffi::OsString::from("0.6"),
-        std::ffi::OsString::from("-et"),
-        std::ffi::OsString::from("2.4"),
-        std::ffi::OsString::from("-sns"),
     ];
-    if let Some(prompt) = filmcraft_speech::initial_prompt_for_language(language) {
-        args.push(std::ffi::OsString::from("--prompt"));
-        args.push(std::ffi::OsString::from(prompt));
-    }
     if matches!(compute, SubtitleComputeDevice::Cpu) {
-        args.push(std::ffi::OsString::from("--no-gpu"));
+        args.push(std::ffi::OsString::from("-ng"));
     }
     args
 }
 
-fn find_whisper_json_output(dir: &Path) -> Option<PathBuf> {
-    for name in ["transcript.json", "transcript.json.json"] {
+fn find_whisper_output_by_ext(dir: &Path, preferred: &[&str], ext: &str) -> Option<PathBuf> {
+    for name in preferred {
         let p = dir.join(name);
         if p.is_file() {
             return Some(p);
@@ -1016,11 +1068,19 @@ fn find_whisper_json_output(dir: &Path) -> Option<PathBuf> {
     let rd = std::fs::read_dir(dir).ok()?;
     for entry in rd.flatten() {
         let p = entry.path();
-        if p.is_file() && p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("json")) {
+        if p.is_file() && p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case(ext)) {
             return Some(p);
         }
     }
     None
+}
+
+fn find_whisper_json_output(dir: &Path) -> Option<PathBuf> {
+    find_whisper_output_by_ext(dir, &["transcript.json", "transcript.json.json"], "json")
+}
+
+fn find_whisper_srt_output(dir: &Path) -> Option<PathBuf> {
+    find_whisper_output_by_ext(dir, &["transcript.srt", "transcript.srt.srt"], "srt")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1120,18 +1180,35 @@ pub(crate) fn run_whisper_cli(
     *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Parsing subtitles…".into();
     prog.done.store(95, Ordering::Relaxed);
 
-    let Some(json_path) = find_whisper_json_output(&temp_dir.0) else {
-        let tail = read_log_tail(&log_path);
-        let code_str = exit_code.map_or_else(|| "0".to_string(), |c| c.to_string());
-        let detail = if tail.is_empty() { "no stdout/stderr output".to_string() } else { tail };
-        return Err(format!("whisper JSON output missing (exit code {code_str}, dir {}): {detail}", temp_dir.0.display()));
+    let segments = if let Some(json_path) = find_whisper_json_output(&temp_dir.0) {
+        let meta = std::fs::metadata(&json_path).map_err(|e| format!("whisper JSON output unreadable ({}): {e}", json_path.display()))?;
+        if meta.len() > MAX_JSON_BYTES {
+            return Err("whisper JSON output exceeds 64 MiB limit".into());
+        }
+        let bytes = std::fs::read(&json_path).map_err(|e| format!("read whisper JSON: {e}"))?;
+        parse_whisper_json(&bytes)?
+    } else if let Some(srt_path) = find_whisper_srt_output(&temp_dir.0) {
+        let bytes = std::fs::read(&srt_path).map_err(|e| format!("read whisper SRT: {e}"))?;
+        parse_whisper_srt(&bytes)?
+    } else {
+        let log_bytes = std::fs::read(&log_path).unwrap_or_default();
+        let stdout_segs = parse_whisper_stdout(&log_bytes);
+        if !stdout_segs.is_empty() {
+            stdout_segs
+        } else {
+            let head = read_log_head(&log_path, 5);
+            let tail = read_log_tail(&log_path);
+            let code_str = exit_code.map_or_else(|| "0".to_string(), |c| c.to_string());
+            let detail = if !head.is_empty() {
+                head
+            } else if !tail.is_empty() {
+                tail
+            } else {
+                "no stdout/stderr output".to_string()
+            };
+            return Err(format!("whisper JSON output missing (exit code {code_str}, dir {}): {detail}", temp_dir.0.display()));
+        }
     };
-    let meta = std::fs::metadata(&json_path).map_err(|e| format!("whisper JSON output unreadable ({}): {e}", json_path.display()))?;
-    if meta.len() > MAX_JSON_BYTES {
-        return Err("whisper JSON output exceeds 64 MiB limit".into());
-    }
-    let bytes = std::fs::read(&json_path).map_err(|e| format!("read whisper JSON: {e}"))?;
-    let segments = parse_whisper_json(&bytes)?;
     prog.done.store(100, Ordering::Relaxed);
     Ok(segments)
 }
@@ -1983,9 +2060,12 @@ mod tests {
             SubtitleLengthMode::Sentences,
             SubtitleComputeDevice::Gpu,
         );
-        assert!(!args_gpu.iter().any(|a| a == "--no-gpu"));
-        assert!(args_gpu.windows(2).any(|w| w[0] == "--beam-size" && w[1] == "5"));
-        assert!(args_gpu.windows(2).any(|w| w[0] == "--prompt" && w[1] == "Здравейте, днес ще говорим за видео монтаж, съдържание и идеи."));
+        assert!(!args_gpu.iter().any(|a| a == "-ng" || a == "--no-gpu"));
+        assert!(args_gpu.windows(2).any(|w| w[0] == "-m" && w[1] == "model.bin"));
+        assert!(args_gpu.windows(2).any(|w| w[0] == "-f" && w[1] == "audio.wav"));
+        assert!(args_gpu.windows(2).any(|w| w[0] == "-l" && w[1] == "bg"));
+        assert!(args_gpu.iter().any(|a| a == "-oj"));
+        assert!(args_gpu.windows(2).any(|w| w[0] == "-of" && w[1] == "transcript"));
 
         let args_cpu = whisper_cli_args(
             Path::new("model.bin"),
@@ -1995,9 +2075,21 @@ mod tests {
             SubtitleLengthMode::ReelsShort,
             SubtitleComputeDevice::Cpu,
         );
-        assert!(args_cpu.iter().any(|a| a == "--no-gpu"));
-        assert!(args_cpu.windows(2).any(|w| w[0] == "--beam-size" && w[1] == "5"));
-        assert!(!args_cpu.iter().any(|a| a == "--prompt"));
+        assert!(args_cpu.iter().any(|a| a == "-ng"));
+        assert!(args_cpu.iter().any(|a| a == "-oj"));
+
+        let srt = b"1\n00:00:00,500 --> 00:00:02,000\nHello world\n\n";
+        let srt_segs = parse_whisper_srt(srt).unwrap();
+        assert_eq!(srt_segs.len(), 1);
+        assert_eq!(srt_segs[0].text, "Hello world");
+        assert_eq!(srt_segs[0].from_ms, 500);
+        assert_eq!(srt_segs[0].to_ms, 2000);
+
+        let stdout_segs = parse_whisper_stdout(b"[00:00:01.200 --> 00:00:03.400]   Test line\n");
+        assert_eq!(stdout_segs.len(), 1);
+        assert_eq!(stdout_segs[0].text, "Test line");
+        assert_eq!(stdout_segs[0].from_ms, 1200);
+        assert_eq!(stdout_segs[0].to_ms, 3400);
 
         // Dynamic hardware capability tiers
         assert_eq!(feature_capability_tier(AiFeatureWeight::Lightweight, false, None, 2), HardwareCapabilityTier::Optimal);

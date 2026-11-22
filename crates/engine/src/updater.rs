@@ -19,7 +19,7 @@ pub const DEFAULT_RELEASES_API_URL: &str = "https://api.github.com/repos/hertzwa
 pub const DEFAULT_UPDATE_URL: &str = DEFAULT_RELEASES_API_URL;
 pub const DEFAULT_RELEASES_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases";
 pub const DEFAULT_LATEST_RELEASE_PAGE_URL: &str = "https://github.com/hertzwaG/Orpheus/releases/latest";
-pub const ORPHEUS_VERSION: &str = "1.0.6";
+pub const ORPHEUS_VERSION: &str = "1.0.7";
 
 const MAX_RELEASE_JSON_BYTES: u64 = 512 * 1024;
 const MAX_INSTALLER_BYTES: u64 = 512 * 1024 * 1024;
