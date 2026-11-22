@@ -1558,6 +1558,7 @@ fn apply_reframe_plans(
 
             if !overlay_clips.is_empty() {
                 place_facecam_overlays(seq, overlay_clips, new_track_id);
+                crate::subtitles::reposition_subtitles_for_game_stream(seq);
             }
 
             seq.check().map_err(EngineError::Other)?;
@@ -2287,5 +2288,68 @@ mod tests {
         assert!(snapped.top_pct >= 35.0, "top ({:.2}%) must exclude HUD at 26..31%", snapped.top_pct);
         assert!(100.0 - snapped.right_pct <= 22.0, "right ({:.2}%) must exclude gameplay at >= 24%", 100.0 - snapped.right_pct);
         assert!(100.0 - snapped.bottom_pct <= 60.5, "bottom ({:.2}%) must stay inside webcam", 100.0 - snapped.bottom_pct);
+    }
+
+    #[test]
+    fn game_stream_mode_positions_subtitles_above_bottom_facecam_in_both_orders() {
+        use crate::subtitles::{SubtitleCue, SubtitleLengthMode, detect_game_stream_split_y, insert_subtitle_track};
+
+        let sample_cues = vec![SubtitleCue { start: Tick::ZERO, duration: Tick::from_seconds_f64(1.0), text: "CLUTCH ROUND".into() }];
+
+        // Order A: Auto Reframe (Game Stream Mode) -> Generate Subtitles
+        let mut s_a = Session::default();
+        s_a.execute("file.newSequence", json!({"name": "OrderA", "video": 1, "audio": 1})).unwrap();
+        let bars_a = s_a.execute("file.newBarsAndTone", json!({"seconds": 2.0})).unwrap()["item"].as_u64().unwrap();
+        s_a.execute("timeline.place", json!({"item": bars_a, "track": "V1", "frame": 0, "audio": false})).unwrap();
+        let seq_a = s_a.state.active_sequence.unwrap();
+
+        s_a.execute(
+            "ai.autoReframe",
+            json!({
+                "aspect": "9:16",
+                "resizeSequence": true,
+                "splitScreen": true,
+                "facecamPlacement": "bottom",
+                "facecamRegion": "leftMiddle",
+                "wait": true
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(detect_game_stream_split_y(s_a.project.sequence(seq_a).unwrap()), Some(0.55));
+        insert_subtitle_track(&mut s_a, seq_a, "en", SubtitleLengthMode::ReelsShort, &sample_cues).unwrap();
+        let track_a = &s_a.project.sequence(seq_a).unwrap().caption_tracks[0];
+        assert!((track_a.style.margin - 0.45).abs() < 1e-4, "Order A subtitles should sit above 45% bottom facecam, got margin={}", track_a.style.margin);
+
+        // Order B: Generate Subtitles (and bottom text clip) -> Auto Reframe (Game Stream Mode)
+        let mut s_b = Session::default();
+        s_b.execute("file.newSequence", json!({"name": "OrderB", "video": 1, "audio": 1})).unwrap();
+        let bars_b = s_b.execute("file.newBarsAndTone", json!({"seconds": 2.0})).unwrap()["item"].as_u64().unwrap();
+        s_b.execute("timeline.place", json!({"item": bars_b, "track": "V1", "frame": 0, "audio": false})).unwrap();
+        let seq_b = s_b.state.active_sequence.unwrap();
+
+        insert_subtitle_track(&mut s_b, seq_b, "en", SubtitleLengthMode::ReelsShort, &sample_cues).unwrap();
+        assert!((s_b.project.sequence(seq_b).unwrap().caption_tracks[0].style.margin - 0.14).abs() < 1e-4);
+
+        // Single-frame Auto-Reframe (non-Game Stream Mode) must keep standard bottom margin (0.14).
+        s_b.execute("ai.autoReframe", json!({"aspect": "9:16", "resizeSequence": true, "splitScreen": false, "wait": true})).unwrap();
+        assert!(detect_game_stream_split_y(s_b.project.sequence(seq_b).unwrap()).is_none());
+        assert!((s_b.project.sequence(seq_b).unwrap().caption_tracks[0].style.margin - 0.14).abs() < 1e-4);
+
+        // Switching the sequence into Game Stream Mode automatically repositions existing bottom captions above the facecam.
+        s_b.execute(
+            "ai.autoReframe",
+            json!({
+                "aspect": "9:16",
+                "resizeSequence": true,
+                "splitScreen": true,
+                "facecamPlacement": "bottom",
+                "facecamRegion": "leftMiddle",
+                "wait": true
+            }),
+        )
+        .unwrap();
+        let track_b = &s_b.project.sequence(seq_b).unwrap().caption_tracks[0];
+        assert!((track_b.style.margin - 0.45).abs() < 1e-4, "Order B subtitles should move above 45% bottom facecam, got margin={}", track_b.style.margin);
     }
 }

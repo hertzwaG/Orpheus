@@ -595,7 +595,15 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
         // 8. Native text / title overlay on the timeline.
         if out.plan.run_text_overlay {
             let text = out.plan.text_overlay_content.clone().unwrap_or_else(|| "Title".to_string());
-            if s.execute("graphics.newText", json!({"text": text, "newClip": true})).is_ok() {
+            let mut params = json!({"text": text, "newClip": true});
+            if let Some(seq) = s.project.sequence(sid)
+                && let Some(split_y) = crate::subtitles::detect_game_stream_split_y(seq)
+            {
+                let cx = f64::from(seq.settings.width.max(1)) * 0.5;
+                let cy = (f64::from(seq.settings.height.max(1)) * (split_y - 0.03).clamp(0.45, 0.70)).round();
+                params["position"] = json!([cx, cy]);
+            }
+            if s.execute("graphics.newText", params).is_ok() {
                 steps_applied.push(format!("Added Text Overlay: \"{text}\""));
             }
         }

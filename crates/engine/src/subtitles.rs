@@ -14,7 +14,8 @@ use std::time::Duration;
 use web_time::Instant;
 
 use filmcraft_export::{Progress, Report};
-use filmcraft_project::{Caption, CaptionAnchor, CaptionFormat, CaptionStyle, CaptionTrack, ClipId, ItemId, Project, Sequence, Track, TrackId};
+use filmcraft_geom::Vec2;
+use filmcraft_project::{Caption, CaptionAnchor, CaptionFormat, CaptionStyle, CaptionTrack, ClipId, ItemId, ParamValue, Project, Sequence, Track, TrackId};
 use filmcraft_render::SourceProvider;
 use filmcraft_time::{FrameRate, Tick};
 use serde::{Deserialize, Serialize};
@@ -1344,6 +1345,104 @@ pub fn subtitle_track_style(mode: SubtitleLengthMode) -> CaptionStyle {
     }
 }
 
+/// Detect whether **Game Stream Mode** (vertical split-screen with gameplay on top and FaceCam on
+/// the bottom) is active on `seq`, returning the normalized vertical split boundary `split_y`
+/// (`0.0..1.0`, top edge of the bottom FaceCam zone, e.g. `0.55` for the 55% / 45% split).
+pub fn detect_game_stream_split_y(seq: &Sequence) -> Option<f64> {
+    let sh = f64::from(seq.settings.height.max(1));
+    for tr in &seq.video_tracks {
+        for it in &tr.items {
+            if !it.name.ends_with(" (FaceCam)") {
+                continue;
+            }
+            let pos_y = it.effect("motion").map(|m| m.vec2_at("position", Tick::ZERO).y).filter(|y| y.is_finite()).unwrap_or(sh * 0.775);
+            if pos_y > sh * 0.5 {
+                let cam_cy_norm = (pos_y / sh).clamp(0.55, 0.90);
+                let split_y = ((2.0 * cam_cy_norm - 1.0) * 1000.0).round() / 1000.0;
+                return Some(split_y.clamp(0.45, 0.75));
+            }
+        }
+    }
+    None
+}
+
+/// Bottom-anchored caption margin (`fraction of frame height`) that places the subtitle block
+/// centered right above the top edge (`split_y`) of the bottom FaceCam in Game Stream Mode.
+pub fn game_stream_subtitle_margin(split_y: f64) -> f32 {
+    ((1.0 - split_y) as f32).clamp(0.35, 0.45)
+}
+
+/// Adjust a [`CaptionStyle`] so subtitles sit centered right above the bottom FaceCam in Game Stream Mode.
+pub fn apply_game_stream_subtitle_style(style: &mut CaptionStyle, split_y: f64) {
+    if style.anchor != CaptionAnchor::Top {
+        style.anchor = CaptionAnchor::Bottom;
+        style.margin = style.margin.max(game_stream_subtitle_margin(split_y));
+    }
+}
+
+/// Scan existing subtitle/caption tracks and graphic text clips on `seq` when Game Stream Mode is
+/// active, repositioning any bottom-placed captions or text overlays up to the safe zone centered
+/// right above the top edge of the bottom FaceCam. Returns the number of tracks/clips repositioned.
+pub fn reposition_subtitles_for_game_stream(seq: &mut Sequence) -> usize {
+    let Some(split_y) = detect_game_stream_split_y(seq) else {
+        return 0;
+    };
+    let target_margin = game_stream_subtitle_margin(split_y);
+    let mut moved = 0usize;
+
+    for track in &mut seq.caption_tracks {
+        if track.style.anchor == CaptionAnchor::Bottom && track.style.margin + 1e-4 < target_margin {
+            track.style.margin = target_margin;
+            moved += 1;
+        }
+    }
+
+    let sw = f64::from(seq.settings.width.max(1));
+    let sh = f64::from(seq.settings.height.max(1));
+    let facecam_top_y = split_y * sh;
+    let safe_y = ((split_y - 0.03).clamp(0.45, 0.70) * sh).round();
+
+    for tr in &mut seq.video_tracks {
+        if tr.locked {
+            continue;
+        }
+        for it in &mut tr.items {
+            if it.name.ends_with(" (FaceCam)") || !it.effects.iter().any(|e| e.effect == "text") {
+                continue;
+            }
+            let mut item_moved = false;
+            for ef in &mut it.effects {
+                if ef.effect != "text" {
+                    continue;
+                }
+                if let Some(pos_param) = ef.param_mut("position") {
+                    let cur = pos_param.value.as_vec2().unwrap_or(Vec2::new(sw * 0.5, sh * 0.5));
+                    if cur.y.is_finite() && cur.y > facecam_top_y {
+                        let new_x = if cur.x.is_finite() { cur.x } else { sw * 0.5 };
+                        pos_param.value = ParamValue::Vec2(Vec2::new(new_x, safe_y));
+                        item_moved = true;
+                    }
+                    for kf in &mut pos_param.keyframes {
+                        if let Some(v) = kf.value.as_vec2()
+                            && v.y.is_finite()
+                            && v.y > facecam_top_y
+                        {
+                            let new_x = if v.x.is_finite() { v.x } else { sw * 0.5 };
+                            kf.value = ParamValue::Vec2(Vec2::new(new_x, safe_y));
+                            item_moved = true;
+                        }
+                    }
+                }
+            }
+            if item_moved {
+                moved += 1;
+            }
+        }
+    }
+
+    moved
+}
+
 /// Apply generated cues onto a dedicated [`CaptionTrack`] in one undoable sequence edit.
 pub fn insert_subtitle_track(s: &mut Session, seq_id: ItemId, language: &str, mode: SubtitleLengthMode, cues: &[SubtitleCue]) -> Result<(TrackId, usize)> {
     if cues.is_empty() {
@@ -1377,6 +1476,9 @@ pub fn insert_subtitle_track(s: &mut Session, seq_id: ItemId, language: &str, mo
         let mut track = CaptionTrack::new(tid, track_name.into(), CaptionFormat::Subtitle);
         track.language = lang;
         track.style = style;
+        if let Some(split_y) = detect_game_stream_split_y(q) {
+            apply_game_stream_subtitle_style(&mut track.style, split_y);
+        }
         track.captions = captions;
         q.caption_tracks.insert(0, track);
         q.check().map_err(EngineError::Other)?;
