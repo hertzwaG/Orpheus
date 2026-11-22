@@ -1,15 +1,15 @@
 [Setup]
 AppId={{8C9E4F2A-7B1D-4E5B-9A3C-6F2D8E1B4A90}
 AppName=Orpheus
-AppVersion=1.0.4
-AppVerName=Orpheus 1.0.4
+AppVersion=1.0.5
+AppVerName=Orpheus 1.0.5
 AppPublisher=Orpheus
 DefaultDirName={autopf}\Orpheus
 DefaultGroupName=Orpheus
 AllowNoIcons=yes
-LicenseFile=..\dist\Orpheus-v1.0.4-Windows-x64\LICENSE
+LicenseFile=..\dist\Orpheus-v1.0.5-Windows-x64\LICENSE
 OutputDir=..\dist
-OutputBaseFilename=Orpheus-v1.0.4-Setup
+OutputBaseFilename=Orpheus-v1.0.5-Setup
 SetupIconFile=..\assets\orpheus\orpheus.ico
 UninstallDisplayIcon={app}\orpheus.exe
 Compression=lzma2/ultra64
@@ -29,7 +29,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\dist\Orpheus-v1.0.4-Windows-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\Orpheus-v1.0.5-Windows-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\assets\fonts\*.ttf"; DestDir: "{app}\fonts"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\assets\fonts\*.otf"; DestDir: "{app}\fonts"; Flags: ignoreversion skipifsourcedoesntexist
 

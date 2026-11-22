@@ -42,11 +42,26 @@ const MAX_ATTACHMENT_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_WIKIMEDIA_IMAGES: usize = 3;
 const MAX_WIKIMEDIA_BYTES: usize = 8 * 1024 * 1024;
 
+/// Visual theme & layout style for generated All-In-One scenes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SceneStyle {
+    #[default]
+    ModernTech,
+    MinimalEditorial,
+    CinematicTimeline,
+    Corkboard,
+}
+
 /// Parsed execution plan produced by Ollama or the built-in offline deterministic planner.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllInOnePlan {
     pub build_corkboard: bool,
+    #[serde(default)]
+    pub build_scene: bool,
+    #[serde(default)]
+    pub scene_style: SceneStyle,
     pub build_tiktok_split: bool,
     pub tiktok_article_highlight: bool,
     pub corkboard_topic: String,
@@ -60,6 +75,12 @@ pub struct AllInOnePlan {
     pub run_smart_triggers: bool,
     pub run_subtitles: bool,
     pub run_vod_chapters: bool,
+    #[serde(default)]
+    pub run_transitions: bool,
+    #[serde(default)]
+    pub run_color_grade: bool,
+    #[serde(default)]
+    pub run_text_overlay: bool,
     pub used_ollama: bool,
 }
 
@@ -127,9 +148,21 @@ fn check_cancelled(progress: Option<&Progress>) -> std::result::Result<(), Strin
 /// 100% offline deterministic prompt planner mapping natural language prompts into scene/tool actions.
 pub fn plan_from_prompt(prompt: &str, attachment_count: usize) -> AllInOnePlan {
     let low = prompt.to_ascii_lowercase();
-    let has_corkboard_kw = ["2.5d", "corkboard", "documentary", "dynamic shadow", "polaroid", "sticky note", "parallax", "visual story", "evidence", "scene"]
+    let has_corkboard_kw = ["corkboard", "detective", "evidence wall", "evidence board", "investigation", "polaroid", "sticky note", "2.5d", "dynamic shadow"]
         .iter()
         .any(|k| low.contains(k));
+    let has_timeline_kw = ["timeline", "chronolog", "history", "roadmap", "milestone", "documentary", "map"].iter().any(|k| low.contains(k));
+    let has_editorial_kw = ["minimal", "editorial", "typography", "kinetic", "lower third", "title card", "clean"].iter().any(|k| low.contains(k));
+    let scene_style = if has_corkboard_kw {
+        SceneStyle::Corkboard
+    } else if has_timeline_kw {
+        SceneStyle::CinematicTimeline
+    } else if has_editorial_kw {
+        SceneStyle::MinimalEditorial
+    } else {
+        SceneStyle::ModernTech
+    };
+
     let build_tiktok_split = ["tiktok split", "talking head", "50/50", "news breakdown", "article highlight", "split b-roll"].iter().any(|k| low.contains(k));
     let tiktok_article_highlight = ["article highlight", "news breakdown", "headline", "article"].iter().any(|k| low.contains(k));
 
@@ -145,6 +178,11 @@ pub fn plan_from_prompt(prompt: &str, attachment_count: usize) -> AllInOnePlan {
     let run_smart_triggers = ["smart trigger", "zoom in", "punch in", "sfx", "callout"].iter().any(|k| low.contains(k));
     let run_subtitles = ["subtitle", "caption", "transcribe", "polish"].iter().any(|k| low.contains(k));
     let run_vod_chapters = ["split stream", "vod chapters", "stream segments", "separate stages"].iter().any(|k| low.contains(k));
+    let run_transitions = ["transition", "cross dissolve", "dissolve", "fade between", "dip to black"].iter().any(|k| low.contains(k));
+    let run_color_grade = ["color grad", "cinematic look", "lut", "warm look", "teal and orange", "contrast", "saturat", "black and white", "monochrome"]
+        .iter()
+        .any(|k| low.contains(k));
+    let run_text_overlay = ["title overlay", "lower third", "text overlay", "intro text"].iter().any(|k| low.contains(k));
 
     let any_tool = build_tiktok_split
         || run_remove_pauses
@@ -155,14 +193,20 @@ pub fn plan_from_prompt(prompt: &str, attachment_count: usize) -> AllInOnePlan {
         || run_viral_clips
         || run_smart_triggers
         || run_subtitles
-        || run_vod_chapters;
-    let build_corkboard = has_corkboard_kw || (!any_tool && (attachment_count > 0 || !prompt.trim().is_empty()));
+        || run_vod_chapters
+        || run_transitions
+        || run_color_grade
+        || run_text_overlay;
+    let build_corkboard = has_corkboard_kw;
+    let build_scene = build_corkboard || (!any_tool && (attachment_count > 0 || !prompt.trim().is_empty()));
 
-    let topic = prompt.trim().chars().take(60).collect::<String>();
-    let corkboard_topic = if topic.is_empty() { "Documentary Evidence".to_string() } else { topic };
+    let topic = prompt.trim().chars().take(80).collect::<String>();
+    let corkboard_topic = if topic.is_empty() { "Orpheus Scene".to_string() } else { topic };
 
     AllInOnePlan {
         build_corkboard,
+        build_scene,
+        scene_style,
         build_tiktok_split,
         tiktok_article_highlight,
         corkboard_topic,
@@ -176,6 +220,9 @@ pub fn plan_from_prompt(prompt: &str, attachment_count: usize) -> AllInOnePlan {
         run_smart_triggers,
         run_subtitles,
         run_vod_chapters,
+        run_transitions,
+        run_color_grade,
+        run_text_overlay,
         used_ollama: false,
     }
 }
@@ -551,7 +598,9 @@ fn paint_newspaper_clipping_inset(img: &mut RgbaImage, margin: u32, inner_w: u32
             img.put_pixel(margin + dx, margin + dy, col);
         }
     }
-    draw_bitmap_text(img, "THE CHRONICLE REPORT", margin + 16, margin + 15, 2, Rgba([244, 240, 230, 255]));
+    let header_tag = if headline.is_empty() { "FIELD REPORT" } else { headline };
+    let header_clip: String = header_tag.chars().take(22).collect();
+    draw_bitmap_text(img, &header_clip, margin + 16, margin + 15, 2, Rgba([244, 240, 230, 255]));
     let short_hl: String = headline.chars().take(18).collect();
     draw_bitmap_text(img, &short_hl, margin + 16, margin + 68, 2, Rgba([24, 26, 32, 255]));
 
@@ -667,9 +716,14 @@ fn generate_polaroid_frame(w: u32, h: u32, photo: Option<&RgbaImage>, variant: u
         paint_blueprint_dossier_inset(&mut img, margin, inner_w, inner_h);
     }
 
-    // Crisp uppercase caption on the Polaroid bottom border.
-    let caption = if variant == 0 { "EXHIBIT A // PRIMARY RECORD" } else { "EXHIBIT B // SYSTEM TELEMETRY" };
-    draw_bitmap_text_centered(&mut img, caption, h.saturating_sub(bottom_pad / 2), 2, Rgba([42, 44, 52, 255]));
+    // Crisp uppercase caption on the Polaroid bottom border derived from prompt keywords.
+    let kws = extract_subject_keywords(headline, 2);
+    let caption = if variant == 0 {
+        format!("{} // OVERVIEW", kws.first().map_or("PRIMARY", String::as_str).to_ascii_uppercase())
+    } else {
+        format!("{} // DETAILS", kws.get(1).or(kws.first()).map_or("CONTEXT", String::as_str).to_ascii_uppercase())
+    };
+    draw_bitmap_text_centered(&mut img, &caption, h.saturating_sub(bottom_pad / 2), 2, Rgba([42, 44, 52, 255]));
 
     // Red push-pin at top center.
     paint_push_pin(&mut img, w as f32 * 0.5, margin as f32 * 0.52, (w as f32 * 0.032).max(6.0));
@@ -683,15 +737,16 @@ fn extract_stat_or_phrase(topic: &str, transcript_spans: &[(f64, f64, String)]) 
         let joined: String = transcript_spans.iter().take(4).map(|(_, _, t)| t.as_str()).collect::<Vec<_>>().join(" ");
         format!("{topic} {joined}")
     };
+    let words = extract_subject_keywords(&combined, 6);
     let stat_token = combined
         .split_whitespace()
         .find(|w| w.chars().any(|c| c.is_ascii_digit()))
         .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '%' && c != '+' && c != '-').to_ascii_uppercase())
         .filter(|w| !w.is_empty())
-        .unwrap_or_else(|| "KEY FACT".to_string());
+        .unwrap_or_else(|| words.first().map_or_else(|| "HIGHLIGHT".to_string(), |w| w.to_ascii_uppercase()));
 
-    let words = extract_subject_keywords(&combined, 6);
-    let sub_kicker = if words.len() >= 2 { format!("{} // {}", words[0].to_ascii_uppercase(), words[1].to_ascii_uppercase()) } else { "TIMELINE BRIEF".into() };
+    let sub_kicker =
+        if words.len() >= 2 { format!("{} // {}", words[0].to_ascii_uppercase(), words[1].to_ascii_uppercase()) } else { extract_clean_headline(topic) };
     let note_phrase = transcript_spans
         .first()
         .map(|(_, _, s)| s.trim().to_ascii_uppercase())
@@ -969,6 +1024,284 @@ fn prepare_corkboard_assets(
             dur_sec: (total_dur - t2).max(2.0),
         },
     ];
+
+    Ok((assets, elements))
+}
+
+fn extract_prompt_bullets(topic: &str) -> Vec<String> {
+    let mut parts: Vec<String> = topic
+        .split([',', ';', '.', '\n', ':'])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.chars().take(28).collect::<String>().to_ascii_uppercase())
+        .collect();
+    if parts.is_empty() {
+        parts.push(extract_clean_headline(topic));
+    }
+    if parts.len() == 1 {
+        let words: Vec<&str> = topic.split_whitespace().collect();
+        if words.len() >= 4 {
+            let mid = words.len() / 2;
+            parts = vec![
+                words[..mid].join(" ").chars().take(26).collect::<String>().to_ascii_uppercase(),
+                words[mid..].join(" ").chars().take(26).collect::<String>().to_ascii_uppercase(),
+            ];
+        }
+    }
+    parts
+}
+
+fn generate_styled_backdrop(w: u32, h: u32, style: SceneStyle) -> RgbaImage {
+    let mut img = RgbaImage::new(w, h);
+    for y in 0..h {
+        let v = y as f32 / h.max(1) as f32;
+        for x in 0..w {
+            let u = x as f32 / w.max(1) as f32;
+            let glow = (1.0 - ((u - 0.5).powi(2) + (v - 0.42).powi(2)).sqrt() * 1.35).max(0.0);
+            let px = match style {
+                SceneStyle::ModernTech => {
+                    let dot = (x % 48 == 0 && y % 48 == 0) as u8 as f32 * 14.0;
+                    Rgba([(11.0 + glow * 16.0 + dot) as u8, (15.0 + glow * 28.0 + dot) as u8, (24.0 + glow * 52.0 + dot) as u8, 255])
+                }
+                SceneStyle::MinimalEditorial => Rgba([(18.0 + glow * 12.0) as u8, (18.0 + glow * 12.0) as u8, (22.0 + glow * 15.0) as u8, 255]),
+                SceneStyle::CinematicTimeline => {
+                    let grid = (x % 80 == 0 || y % 80 == 0) as u8 as f32 * 8.0;
+                    let axis = (y as i32 - (h as i32 * 56 / 100)).abs() <= 2 && x > 140 && x + 140 < w;
+                    if axis {
+                        Rgba([68, 132, 224, 255])
+                    } else {
+                        Rgba([(12.0 + glow * 14.0 + grid) as u8, (18.0 + glow * 22.0 + grid) as u8, (29.0 + glow * 38.0 + grid) as u8, 255])
+                    }
+                }
+                SceneStyle::Corkboard => Rgba([18, 20, 26, 255]),
+            };
+            img.put_pixel(x, y, px);
+        }
+    }
+    img
+}
+
+fn generate_tech_or_editorial_card(w: u32, h: u32, style: SceneStyle, title: &str, body_line: &str, badge: &str, accent: Rgba<u8>) -> RgbaImage {
+    let mut img = RgbaImage::new(w, h);
+    let (bg, border) = match style {
+        SceneStyle::MinimalEditorial => (Rgba([24, 24, 28, 242]), Rgba([220, 220, 228, 80])),
+        _ => (Rgba([17, 23, 36, 242]), Rgba([accent[0], accent[1], accent[2], 140])),
+    };
+    for y in 0..h {
+        for x in 0..w {
+            let is_border = x < 2 || y < 2 || x + 2 >= w || y + 2 >= h;
+            let top_bar = y >= 2 && y < 7;
+            img.put_pixel(
+                x,
+                y,
+                if top_bar {
+                    accent
+                } else if is_border {
+                    border
+                } else {
+                    bg
+                },
+            );
+        }
+    }
+    if !badge.is_empty() {
+        draw_bitmap_text(&mut img, badge, 24, 24, 2, accent);
+    }
+    let title_clip: String = title.chars().take(24).collect();
+    draw_bitmap_text(&mut img, &title_clip, 24, 62, 3, Rgba([244, 246, 252, 255]));
+    if !body_line.is_empty() {
+        let body_clip: String = body_line.chars().take(30).collect();
+        draw_bitmap_text(&mut img, &body_clip, 24, 122, 2, Rgba([168, 180, 202, 255]));
+    }
+    img
+}
+
+fn generate_styled_hero_banner(w: u32, h: u32, style: SceneStyle, headline: &str, kicker: &str) -> RgbaImage {
+    let mut img = RgbaImage::new(w, h);
+    let accent = match style {
+        SceneStyle::MinimalEditorial => Rgba([238, 238, 244, 255]),
+        SceneStyle::CinematicTimeline => Rgba([96, 165, 250, 255]),
+        _ => Rgba([56, 189, 248, 255]),
+    };
+    for y in 0..h {
+        for x in 0..w {
+            let bar = y + 4 >= h && x > 40 && x + 40 < w;
+            if bar {
+                img.put_pixel(x, y, accent);
+            } else {
+                img.put_pixel(x, y, Rgba([14, 18, 28, 220]));
+            }
+        }
+    }
+    draw_bitmap_text_centered(&mut img, kicker, 28, 2, accent);
+    draw_bitmap_text_centered(&mut img, headline, 80, 4, Rgba([248, 250, 252, 255]));
+    img
+}
+
+fn prepare_styled_scene_assets(
+    style: SceneStyle,
+    topic: &str,
+    attachments: &[PreparedAttachment],
+    wikimedia_imgs: &[RgbaImage],
+    transcript_spans: &[(f64, f64, String)],
+) -> std::result::Result<(Vec<GeneratedAsset>, Vec<CorkboardElementSpec>), String> {
+    let headline = extract_clean_headline(topic);
+    let (stat, sub_kicker, note_phrase) = extract_stat_or_phrase(topic, transcript_spans);
+    let bullets = extract_prompt_bullets(topic);
+    let b1 = bullets.first().cloned().unwrap_or_else(|| headline.clone());
+    let b2 = bullets.get(1).cloned().unwrap_or_else(|| note_phrase.clone());
+    let b3 = bullets.get(2).cloned().unwrap_or_else(|| sub_kicker.clone());
+
+    let mut photo_img: Option<RgbaImage> = None;
+    for att in attachments {
+        if let Ok(dyn_img) = image::load_from_memory(&att.bytes) {
+            photo_img = Some(dyn_img.to_rgba8());
+            break;
+        }
+    }
+    if photo_img.is_none() {
+        photo_img = wikimedia_imgs.first().cloned();
+    }
+
+    let accent_a = Rgba([56, 189, 248, 255]);
+    let accent_b = Rgba([167, 139, 250, 255]);
+    let accent_c = Rgba([52, 211, 153, 255]);
+
+    let card1 = if let Some(src) = photo_img.as_ref() {
+        image::imageops::resize(src, 620, 360, image::imageops::FilterType::Triangle)
+    } else {
+        generate_tech_or_editorial_card(620, 260, style, &b1, &sub_kicker, &stat, accent_a)
+    };
+    let card2 = generate_tech_or_editorial_card(620, 260, style, &b2, &b3, "02", accent_b);
+    let card3 = generate_tech_or_editorial_card(840, 210, style, &headline, &b1, "03", accent_c);
+
+    let bg_name = match style {
+        SceneStyle::MinimalEditorial => "Minimal Editorial Backdrop",
+        SceneStyle::CinematicTimeline => "Cinematic Timeline Backdrop",
+        _ => "Modern Tech Backdrop",
+    };
+    let assets = vec![
+        GeneratedAsset { base_name: bg_name.into(), png_bytes: encode_png(&generate_styled_backdrop(2400, 1350, style))? },
+        GeneratedAsset { base_name: "Card Shadow".into(), png_bytes: encode_png(&generate_soft_shadow(660, 320))? },
+        GeneratedAsset { base_name: "Hero Title".into(), png_bytes: encode_png(&generate_styled_hero_banner(1120, 150, style, &headline, &sub_kicker))? },
+        GeneratedAsset { base_name: "Primary Card".into(), png_bytes: encode_png(&card1)? },
+        GeneratedAsset { base_name: "Secondary Card".into(), png_bytes: encode_png(&card2)? },
+        GeneratedAsset { base_name: "Summary Card".into(), png_bytes: encode_png(&card3)? },
+    ];
+
+    let total_dur = transcript_spans.last().map(|(_, e, _)| *e).filter(|&e| e > 4.0).unwrap_or(9.0);
+    let t1 = transcript_spans.first().map(|(s, _, _)| (*s).max(0.15)).unwrap_or(0.25);
+    let t2 = transcript_spans.get(1).map(|(s, _, _)| *s).unwrap_or(1.10);
+    let t3 = transcript_spans.get(2).map(|(s, _, _)| *s).unwrap_or(2.10);
+
+    let elements = match style {
+        SceneStyle::MinimalEditorial => vec![
+            CorkboardElementSpec {
+                asset_idx: 2,
+                shadow_asset_idx: 1,
+                name: "Editorial Title".into(),
+                base_pos: (960.0, 280.0),
+                depth_height: 0.7,
+                tilt_deg: 0.0,
+                start_sec: 0.0,
+                dur_sec: total_dur,
+            },
+            CorkboardElementSpec {
+                asset_idx: 5,
+                shadow_asset_idx: 1,
+                name: "Lower Third Summary".into(),
+                base_pos: (960.0, 790.0),
+                depth_height: 0.9,
+                tilt_deg: 0.0,
+                start_sec: t1,
+                dur_sec: (total_dur - t1).max(2.0),
+            },
+        ],
+        SceneStyle::CinematicTimeline => vec![
+            CorkboardElementSpec {
+                asset_idx: 2,
+                shadow_asset_idx: 1,
+                name: "Timeline Header".into(),
+                base_pos: (960.0, 150.0),
+                depth_height: 0.7,
+                tilt_deg: 0.0,
+                start_sec: 0.0,
+                dur_sec: total_dur,
+            },
+            CorkboardElementSpec {
+                asset_idx: 3,
+                shadow_asset_idx: 1,
+                name: "Timeline Node 1".into(),
+                base_pos: (560.0, 440.0),
+                depth_height: 1.0,
+                tilt_deg: 0.0,
+                start_sec: t1,
+                dur_sec: (total_dur - t1).max(2.0),
+            },
+            CorkboardElementSpec {
+                asset_idx: 4,
+                shadow_asset_idx: 1,
+                name: "Timeline Node 2".into(),
+                base_pos: (1360.0, 440.0),
+                depth_height: 1.1,
+                tilt_deg: 0.0,
+                start_sec: t2,
+                dur_sec: (total_dur - t2).max(2.0),
+            },
+            CorkboardElementSpec {
+                asset_idx: 5,
+                shadow_asset_idx: 1,
+                name: "Timeline Milestone".into(),
+                base_pos: (960.0, 845.0),
+                depth_height: 0.9,
+                tilt_deg: 0.0,
+                start_sec: t3,
+                dur_sec: (total_dur - t3).max(2.0),
+            },
+        ],
+        _ => vec![
+            CorkboardElementSpec {
+                asset_idx: 2,
+                shadow_asset_idx: 1,
+                name: "Hero Title".into(),
+                base_pos: (960.0, 150.0),
+                depth_height: 0.7,
+                tilt_deg: 0.0,
+                start_sec: 0.0,
+                dur_sec: total_dur,
+            },
+            CorkboardElementSpec {
+                asset_idx: 3,
+                shadow_asset_idx: 1,
+                name: "Feature Card 1".into(),
+                base_pos: (560.0, 470.0),
+                depth_height: 1.0,
+                tilt_deg: 0.0,
+                start_sec: t1,
+                dur_sec: (total_dur - t1).max(2.0),
+            },
+            CorkboardElementSpec {
+                asset_idx: 4,
+                shadow_asset_idx: 1,
+                name: "Feature Card 2".into(),
+                base_pos: (1360.0, 470.0),
+                depth_height: 1.1,
+                tilt_deg: 0.0,
+                start_sec: t2,
+                dur_sec: (total_dur - t2).max(2.0),
+            },
+            CorkboardElementSpec {
+                asset_idx: 5,
+                shadow_asset_idx: 1,
+                name: "Summary Card".into(),
+                base_pos: (960.0, 840.0),
+                depth_height: 0.9,
+                tilt_deg: 0.0,
+                start_sec: t3,
+                dur_sec: (total_dur - t3).max(2.0),
+            },
+        ],
+    };
 
     Ok((assets, elements))
 }
@@ -1336,13 +1669,14 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
     let mut generated_layers = 0usize;
     let mut attachments_imported = 0usize;
 
-    let need_seq = s.state.active_sequence.is_none() && (out.plan.build_corkboard || out.plan.build_tiktok_split || !out.attachments.is_empty());
+    let need_seq =
+        s.state.active_sequence.is_none() && (out.plan.build_scene || out.plan.build_corkboard || out.plan.build_tiktok_split || !out.attachments.is_empty());
     if need_seq {
         s.execute("file.newSequence", json!({"name": "Orpheus AI Scene", "video": 1, "audio": 1}))?;
     }
 
     let seq_id = s.state.active_sequence;
-    if !out.attachments.is_empty() || out.plan.build_corkboard || out.plan.build_tiktok_split {
+    if !out.attachments.is_empty() || out.plan.build_scene || out.plan.build_corkboard || out.plan.build_tiktok_split {
         s.edit_group("Orpheus All-In-One", |s| {
             // 1. Import any user-attached local media files.
             let mut attachment_ids: Vec<ItemId> = Vec::with_capacity(out.attachments.len());
@@ -1374,8 +1708,8 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
                 steps_applied.push(format!("Built TikTok 50/50 Split Scene ({layers_placed} layers)"));
             }
 
-            // 2. Build 2.5D Corkboard / Documentary Motion scene with coupled dynamic shadows.
-            if out.plan.build_corkboard
+            // 2. Build prompt-driven layered scene (Modern Tech, Minimal Editorial, Cinematic Timeline, or 2.5D Corkboard).
+            if (out.plan.build_scene || out.plan.build_corkboard)
                 && let Some(sid) = seq_id
             {
                 if !cfg!(target_arch = "wasm32") {
@@ -1506,7 +1840,13 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
                 })?;
 
                 generated_layers = layers_placed;
-                steps_applied.push(format!("Built 2.5D Corkboard ({layers_placed} layers)"));
+                let style_label = match out.plan.scene_style {
+                    SceneStyle::Corkboard => format!("Built 2.5D Corkboard ({layers_placed} layers)"),
+                    SceneStyle::ModernTech => format!("Built Modern Tech Scene ({layers_placed} layers)"),
+                    SceneStyle::MinimalEditorial => format!("Built Minimal Editorial Scene ({layers_placed} layers)"),
+                    SceneStyle::CinematicTimeline => format!("Built Cinematic Timeline ({layers_placed} layers)"),
+                };
+                steps_applied.push(style_label);
             }
             Ok(())
         })?;
@@ -1542,6 +1882,63 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
         }
         if out.plan.run_subtitles && s.execute("ai.generateSubtitles", json!({"wait": true})).is_ok() {
             steps_applied.push("AI Subtitles".into());
+        }
+        if out.plan.run_transitions
+            && let Some(sid) = seq_id
+        {
+            let cuts: Vec<(TrackId, Tick)> = s
+                .project
+                .sequence(sid)
+                .map(|q| {
+                    q.video_tracks
+                        .iter()
+                        .filter(|tr| !tr.locked)
+                        .flat_map(|tr| tr.items.windows(2).filter(|w| w[0].end() == w[1].start).map(move |w| (tr.id, w[1].start)))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut added = 0usize;
+            for (tid, at) in cuts {
+                if s.execute("timeline.addTransition", json!({"track": tid.0, "at": at.0, "effect": "Cross Dissolve"})).is_ok() {
+                    added += 1;
+                }
+            }
+            if added > 0 {
+                steps_applied.push(format!("Added {added} Cross Dissolve transition(s)"));
+            }
+        }
+        if out.plan.run_color_grade
+            && let Some(sid) = seq_id
+        {
+            let clips: Vec<ClipId> = s
+                .project
+                .sequence(sid)
+                .map(|q| q.video_tracks.iter().filter(|tr| !tr.locked).flat_map(|tr| tr.items.iter().map(|it| it.id)).collect())
+                .unwrap_or_default();
+            let fx = if out.plan.corkboard_topic.to_ascii_lowercase().contains("black and white")
+                || out.plan.corkboard_topic.to_ascii_lowercase().contains("monochrome")
+            {
+                "black_white"
+            } else {
+                "lumetri"
+            };
+            let mut graded = 0usize;
+            for cid in clips {
+                if s.execute("vfx.apply", json!({"clip": cid.0, "effect": fx})).is_ok() {
+                    graded += 1;
+                }
+            }
+            if graded > 0 {
+                steps_applied.push(format!("Applied {fx} look to {graded} clip(s)"));
+            }
+        }
+        if out.plan.run_text_overlay
+            && let Some(sid) = seq_id
+        {
+            let headline = extract_clean_headline(&out.plan.corkboard_topic);
+            if s.execute("graphics.addText", json!({"seq": sid.0, "text": headline})).is_ok() {
+                steps_applied.push("Added Title Overlay".into());
+            }
         }
     }
 
@@ -1651,7 +2048,7 @@ fn all_in_one_cmd(s: &mut Session, p: &Value) -> Result<Value> {
 
             let mut wikimedia_imgs = Vec::new();
             // Prioritize user-attached media: skip Wikimedia stock whenever local attachments are provided.
-            if fetch_wikimedia && attachments.is_empty() && (plan.build_corkboard || plan.build_tiktok_split) {
+            if fetch_wikimedia && attachments.is_empty() && (plan.build_scene || plan.build_corkboard || plan.build_tiktok_split) {
                 *lock(&prog.status) = "Fetching Wikimedia reference images…".into();
                 wikimedia_imgs = fetch_wikimedia_images(&plan.corkboard_topic, Some(&prog));
             }
@@ -1661,6 +2058,9 @@ fn all_in_one_cmd(s: &mut Session, p: &Value) -> Result<Value> {
             let (corkboard_assets, corkboard_elements) = if plan.build_corkboard {
                 *lock(&prog.status) = "Generating 2.5D procedural documentary assets…".into();
                 prepare_corkboard_assets(&plan.corkboard_topic, &attachments, &wikimedia_imgs, &transcript_spans)?
+            } else if plan.build_scene {
+                *lock(&prog.status) = "Generating prompt-driven styled scene…".into();
+                prepare_styled_scene_assets(plan.scene_style, &plan.corkboard_topic, &attachments, &wikimedia_imgs, &transcript_spans)?
             } else {
                 (Vec::new(), Vec::new())
             };
@@ -1793,6 +2193,30 @@ mod tests {
         assert!(p2.reframe_split_screen);
         assert!(p2.run_bg_removal);
         assert!(p2.run_viral_clips);
+    }
+
+    #[test]
+    fn generic_prompts_select_modern_tech_minimal_or_timeline_without_corkboard() {
+        let tech = plan_from_prompt("Create an AI product launch showcase with 4K 60FPS stats", 0);
+        assert!(!tech.build_corkboard);
+        assert!(tech.build_scene);
+        assert_eq!(tech.scene_style, SceneStyle::ModernTech);
+
+        let minimal = plan_from_prompt("Minimalist editorial typography intro for my channel", 0);
+        assert!(!minimal.build_corkboard);
+        assert!(minimal.build_scene);
+        assert_eq!(minimal.scene_style, SceneStyle::MinimalEditorial);
+
+        let timeline = plan_from_prompt("Chronological history timeline of space exploration", 0);
+        assert!(!timeline.build_corkboard);
+        assert!(timeline.build_scene);
+        assert_eq!(timeline.scene_style, SceneStyle::CinematicTimeline);
+
+        let edit_only = plan_from_prompt("Add cross dissolve transitions and cinematic color grading", 0);
+        assert!(!edit_only.build_corkboard);
+        assert!(!edit_only.build_scene);
+        assert!(edit_only.run_transitions);
+        assert!(edit_only.run_color_grade);
     }
 
     #[test]
