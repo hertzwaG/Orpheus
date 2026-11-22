@@ -1740,7 +1740,7 @@ fn draw_all_in_one_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens) {
 
         ui.add(
             egui::Label::new(
-                egui::RichText::new(tl!("Describe your edit, 2.5D corkboard scene, or AI workflow in plain text.")).font(Tokens::ui(10.5)).color(t.text_dim),
+                egui::RichText::new("Describe your timeline edits in English or Bulgarian (subtitles, titles, cuts, speed, effects, audio).").font(Tokens::ui(10.5)).color(t.text_dim),
             )
             .wrap(),
         );
@@ -1748,9 +1748,9 @@ fn draw_all_in_one_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens) {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = egui::vec2(5.0, 5.0);
             let presets = [
-                (tl!("Cinematic Story"), "Build a 2.5D corkboard documentary intro with dynamic shadows"),
-                (tl!("Vertical Short (9:16)"), "Build a 50/50 TikTok split with talking head, B-roll, and center pop subtitles"),
-                (tl!("Clean & Subtitles"), "Auto-Cut & Polish: remove pauses, clean audio, and generate Shorts subtitles"),
+                ("Subtitles & Title", "Generate subtitles, add title \"Intro\", and apply Cross Dissolve transitions"),
+                ("Clean & Normalize", "Remove silences, clean audio, normalize volume, and reframe 9:16"),
+                ("BG: Субтитри + Ефекти", "Добави субтитри на български, заглавие \"Новини\", преход и черно-бял ефект"),
             ];
             for (label, prompt_text) in presets {
                 if ui.small_button(label).clicked() {
@@ -1763,7 +1763,7 @@ fn draw_all_in_one_tab(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens) {
             egui::TextEdit::multiline(&mut app.ui.ai_tools.all_in_one_prompt)
                 .desired_rows(4)
                 .desired_width(ui.available_width())
-                .hint_text(tl!("e.g. Build a 50/50 TikTok split with talking head and article highlight, or a 2.5D corkboard scene")),
+                .hint_text("e.g. Add subtitles, title \"Episode 1\", fade transitions, and normalize audio"),
         );
         app.auto.add("ai.allInOne.prompt", prompt_resp.rect, tl!("Prompt"));
 

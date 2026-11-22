@@ -1006,6 +1006,23 @@ pub fn whisper_cli_args(
     args
 }
 
+fn find_whisper_json_output(dir: &Path) -> Option<PathBuf> {
+    for name in ["transcript.json", "transcript.json.json"] {
+        let p = dir.join(name);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    let rd = std::fs::read_dir(dir).ok()?;
+    for entry in rd.flatten() {
+        let p = entry.path();
+        if p.is_file() && p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("json")) {
+            return Some(p);
+        }
+    }
+    None
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn run_whisper_cli(
     cli_path: &Path,
@@ -1016,17 +1033,27 @@ pub(crate) fn run_whisper_cli(
 ) -> std::result::Result<Vec<WhisperSegment>, String> {
     use std::process::{Command, Stdio};
 
+    if wav_bytes.len() <= 44 {
+        return Err("Extracted 16kHz mono WAV audio is empty (<= 44 bytes); nothing to transcribe".into());
+    }
+
     let temp_dir = create_job_temp_dir(job_id)?;
     let wav_path = temp_dir.0.join("audio.wav");
     let out_prefix = temp_dir.0.join("transcript");
-    let json_path = temp_dir.0.join("transcript.json");
     let log_path = temp_dir.0.join("whisper.log");
 
     std::fs::write(&wav_path, wav_bytes).map_err(|e| format!("write temp wav: {e}"))?;
+    let wav_meta = std::fs::metadata(&wav_path).map_err(|e| format!("stat temp wav: {e}"))?;
+    if wav_meta.len() <= 44 {
+        return Err("Extracted 16kHz mono WAV file on disk is empty (<= 44 bytes)".into());
+    }
     let log_file = std::fs::File::create(&log_path).map_err(|e| format!("create whisper log: {e}"))?;
     let log_err = log_file.try_clone().map_err(|e| format!("clone log handle: {e}"))?;
 
     let mut cmd = Command::new(cli_path);
+    if let Some(bin_dir) = cli_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        cmd.current_dir(bin_dir);
+    }
     cmd.args(whisper_cli_args(cfg.model_path, cfg.language, &wav_path, &out_prefix, cfg.mode, cfg.compute))
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_file))
@@ -1049,7 +1076,7 @@ pub(crate) fn run_whisper_cli(
     let mut last_log_len = 0u64;
     let mut last_activity = Instant::now();
 
-    loop {
+    let exit_code = loop {
         if prog.cancel.load(Ordering::Relaxed) {
             let _ = child.kill();
             let _ = child.wait();
@@ -1057,12 +1084,14 @@ pub(crate) fn run_whisper_cli(
         }
         match child.try_wait() {
             Ok(Some(status)) => {
+                let code = status.code();
                 if !status.success() {
                     let tail = read_log_tail(&log_path);
-                    let detail = if tail.is_empty() { format!("exit code {}", status.code().unwrap_or(-1)) } else { tail };
-                    return Err(format!("whisper-cli failed: {detail}"));
+                    let code_str = code.map_or_else(|| "unknown".to_string(), |c| c.to_string());
+                    let detail = if tail.is_empty() { format!("exit code {code_str}") } else { format!("exit code {code_str}: {tail}") };
+                    return Err(format!("whisper-cli failed ({detail})"));
                 }
-                break;
+                break code;
             }
             Ok(None) => {
                 let elapsed = started.elapsed().as_secs_f64();
@@ -1087,12 +1116,17 @@ pub(crate) fn run_whisper_cli(
                 return Err(format!("whisper-cli wait failed: {e}"));
             }
         }
-    }
-
+    };
     *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Parsing subtitles…".into();
     prog.done.store(95, Ordering::Relaxed);
 
-    let meta = std::fs::metadata(&json_path).map_err(|e| format!("whisper JSON output missing ({}): {e}", json_path.display()))?;
+    let Some(json_path) = find_whisper_json_output(&temp_dir.0) else {
+        let tail = read_log_tail(&log_path);
+        let code_str = exit_code.map_or_else(|| "0".to_string(), |c| c.to_string());
+        let detail = if tail.is_empty() { "no stdout/stderr output".to_string() } else { tail };
+        return Err(format!("whisper JSON output missing (exit code {code_str}, dir {}): {detail}", temp_dir.0.display()));
+    };
+    let meta = std::fs::metadata(&json_path).map_err(|e| format!("whisper JSON output unreadable ({}): {e}", json_path.display()))?;
     if meta.len() > MAX_JSON_BYTES {
         return Err("whisper JSON output exceeds 64 MiB limit".into());
     }
@@ -1737,6 +1771,18 @@ mod tests {
             ]
         }]"#;
         assert_eq!(resolve_whisper_archive_url_from_json(cpu_only).as_deref(), Some("https://example.com/whisper-bin-x64.zip"));
+    }
+
+    #[test]
+    fn find_whisper_json_output_locates_json_and_double_json() {
+        let dir = std::env::temp_dir().join(format!("orpheus-whisper-json-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(find_whisper_json_output(&dir), None);
+        let dbl = dir.join("transcript.json.json");
+        std::fs::write(&dbl, b"{}").unwrap();
+        assert_eq!(find_whisper_json_output(&dir).as_deref(), Some(dbl.as_path()));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     const SAMPLE_OJF_BG: &str = r#"{

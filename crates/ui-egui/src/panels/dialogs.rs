@@ -600,7 +600,7 @@ fn documentation_modal(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
         section(
             ui,
             "2. Built-In AI Studio (7 Engines)",
-            "• Orpheus All-In-One Co-Pilot: Natural-language workflow planner with local file attachments, optional Wikimedia Commons reference fetching, optional local Ollama support (http://127.0.0.1:11434), and a procedural 2.5D Corkboard & Dynamic Shadow motion generator (0.6x parallax, AutoBezier pans, and coupled dynamic shadows).\n\
+            "• Orpheus All-In-One Co-Pilot: Natural-language timeline command executor (English & Bulgarian) for subtitles, title overlays, cuts, speed, transitions, color/VFX, audio leveling, and local Ollama planning (http://127.0.0.1:11434).\n\
              • AI Subtitles & Auto-Cut Silence: Local Vulkan GPU / CPU Whisper transcription with language context prompts, Reels formatting, and silence trimming.\n\
              • AI Beat Sync: Pure-Rust RMS, bass-transient, and STFT spectral flux beat detector with BPM estimation, timeline markers, and beat-aligned video cuts.\n\
              • AI Viral Clip Finder: Deterministic hook, speech pacing, and energy scorer for 15–30s, 30–60s, and 60–90s highlight segments.\n\
