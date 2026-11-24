@@ -9,7 +9,7 @@
 //! - Cuts, splits, silence removal, and clip speed (`timeline.razor`, `ai.removePauses`, `clip.speedDuration`)
 //! - Transitions, color grading, B&W, blur, and zoom (`timeline.addTransition`, `effects.apply`, `effects.setParam`)
 //! - Audio mute, gain/volume, normalization, and AI audio enhance (`effects.apply`, `clip.audioGain`, `ai.enhanceAudio`)
-//! - AI reframe, background removal, beat sync, viral clips, smart triggers, and VOD chapters
+//! - AI reframe, Game Stream split-screen, background removal, viral clips, smart triggers, and VOD chapters
 
 use std::io::Read;
 use std::sync::atomic::Ordering;
@@ -52,7 +52,6 @@ pub struct AllInOnePlan {
     pub run_auto_reframe: bool,
     pub reframe_split_screen: bool,
     pub run_bg_removal: bool,
-    pub run_beat_sync: bool,
     pub run_viral_clips: bool,
     pub run_smart_triggers: bool,
     pub run_vod_chapters: bool,
@@ -228,10 +227,13 @@ pub fn plan_from_prompt(prompt: &str, _attachment_count: usize) -> AllInOnePlan 
         None
     };
 
-    let reframe_split_screen = contains_any(&lower, &["split screen", "split-screen", "gaming split"]);
-    let run_auto_reframe = reframe_split_screen || contains_any(&lower, &["9:16", "vertical", "tiktok", "reels", "shorts", "reframe", "вертикално"]);
+    let wants_vertical =
+        contains_any(&lower, &["9:16", "vertical", "tiktok", "reels", "shorts", "шортс", "reframe", "вертикално", "вертикален", "тикток", "рийлс"]);
+    let mentions_facecam = contains_any(&lower, &["фейскам", "facecam", "face cam", "webcam", "камера", "game stream", "стрийм"]);
+    let explicit_split_screen = contains_any(&lower, &["split screen", "split-screen", "gaming split", "game stream"]);
+    let reframe_split_screen = explicit_split_screen || (wants_vertical && mentions_facecam);
+    let run_auto_reframe = reframe_split_screen || wants_vertical;
     let run_bg_removal = contains_any(&lower, &["remove background", "transparent", "green screen", "премахни фон"]);
-    let run_beat_sync = contains_any(&lower, &["beat sync", "beat markers", "ритъм"]);
     let run_viral_clips = contains_any(&lower, &["viral", "highlight", "вайръл"]);
     let run_smart_triggers = contains_any(&lower, &["smart trigger", "auto b-roll"]);
     let run_vod_chapters = contains_any(&lower, &["vod", "chapter", "глави"]);
@@ -257,7 +259,6 @@ pub fn plan_from_prompt(prompt: &str, _attachment_count: usize) -> AllInOnePlan 
         run_auto_reframe,
         reframe_split_screen,
         run_bg_removal,
-        run_beat_sync,
         run_viral_clips,
         run_smart_triggers,
         run_vod_chapters,
@@ -267,7 +268,7 @@ pub fn plan_from_prompt(prompt: &str, _attachment_count: usize) -> AllInOnePlan 
 
 fn try_plan_with_ollama(endpoint: &str, prompt: &str, base: &mut AllInOnePlan) -> bool {
     let url = format!("{}/api/generate", endpoint.trim_end_matches('/'));
-    let sys = "You are a video editing command planner. Return ONLY compact JSON with boolean keys: run_subtitles, run_text_overlay, run_remove_pauses, run_split_at_playhead, apply_bw, apply_blur, apply_color_grade, audio_mute, audio_normalize, run_audio_enhance, run_auto_reframe, run_bg_removal, run_beat_sync, run_viral_clips, run_smart_triggers, run_vod_chapters, plus optional string text_overlay_content.";
+    let sys = "You are a video editing command planner. Return ONLY compact JSON with boolean keys: run_subtitles, run_text_overlay, run_remove_pauses, run_split_at_playhead, apply_bw, apply_blur, apply_color_grade, audio_mute, audio_normalize, run_audio_enhance, run_auto_reframe, reframe_split_screen, run_bg_removal, run_viral_clips, run_smart_triggers, run_vod_chapters, plus optional string text_overlay_content.";
     let body = json!({
         "model": "llama3.2",
         "prompt": format!("{sys}\nUser request: {prompt}"),
@@ -327,11 +328,12 @@ fn try_plan_with_ollama(endpoint: &str, prompt: &str, base: &mut AllInOnePlan) -
     if parsed.get("run_auto_reframe").and_then(Value::as_bool) == Some(true) {
         base.run_auto_reframe = true;
     }
+    if parsed.get("reframe_split_screen").and_then(Value::as_bool) == Some(true) {
+        base.reframe_split_screen = true;
+        base.run_auto_reframe = true;
+    }
     if parsed.get("run_bg_removal").and_then(Value::as_bool) == Some(true) {
         base.run_bg_removal = true;
-    }
-    if parsed.get("run_beat_sync").and_then(Value::as_bool) == Some(true) {
-        base.run_beat_sync = true;
     }
     if parsed.get("run_viral_clips").and_then(Value::as_bool) == Some(true) {
         base.run_viral_clips = true;
@@ -392,6 +394,195 @@ fn target_all_clips(s: &Session, sid: ItemId) -> Vec<ClipId> {
         .collect()
 }
 
+fn apply_timing_and_audio_steps(s: &mut Session, sid: ItemId, plan: &AllInOnePlan, steps_applied: &mut Vec<String>) {
+    // 2. Cuts, splits, and speed.
+    if plan.run_split_at_playhead {
+        let t = s.playhead();
+        match s.execute("timeline.razor", json!({"time": t.0})) {
+            Ok(v) => {
+                let cuts = v.get("cuts").and_then(Value::as_u64).unwrap_or(0);
+                steps_applied.push(if cuts > 0 { format!("Split {cuts} clip(s) at playhead") } else { "No clip under playhead to split".into() });
+            }
+            Err(e) => steps_applied.push(format!("Split failed: {e}")),
+        }
+    }
+
+    if let Some(speed) = plan.speed_percent {
+        let clips: Vec<u64> = target_all_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if clips.is_empty() {
+            steps_applied.push("Speed change skipped (no unlocked clips on timeline)".into());
+        } else if s.execute("clip.speedDuration", json!({"clips": clips, "speed": speed})).is_ok() {
+            steps_applied.push(format!("Set clip speed to {speed:.0}%"));
+        }
+    }
+
+    if plan.run_remove_pauses {
+        match s.execute("ai.removePauses", json!({"wait": true})) {
+            Ok(_) => steps_applied.push("Removed silences".into()),
+            Err(e) => steps_applied.push(format!("Remove silences skipped: {e}")),
+        }
+    }
+
+    // 3. Audio operations.
+    if plan.run_audio_enhance && s.execute("ai.enhanceAudio", json!({"wait": true})).is_ok() {
+        steps_applied.push("AI Audio Enhance".into());
+    }
+
+    if plan.audio_mute {
+        let aclips = target_audio_clips(s, sid);
+        let mut muted = 0usize;
+        for cid in aclips {
+            if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "Mute"})).is_ok()
+                && s.execute("effects.setParam", json!({"clip": cid.0, "effect": "mute", "param": "mute", "value": true})).is_ok()
+            {
+                muted += 1;
+            }
+        }
+        if muted > 0 {
+            steps_applied.push(format!("Muted {muted} audio clip(s)"));
+        } else {
+            steps_applied.push("Mute skipped (no unlocked audio clips)".into());
+        }
+    }
+
+    if plan.audio_normalize {
+        let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "normalizeAll", "db": -3.0})).is_ok() {
+            steps_applied.push("Normalized audio peaks to -3 dB".into());
+        }
+    }
+
+    if let Some(db) = plan.audio_gain_db {
+        let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "adjust", "db": db})).is_ok() {
+            steps_applied.push(format!("Adjusted audio gain by {db:+.1} dB"));
+        }
+    }
+}
+
+fn apply_ai_and_subtitle_steps(s: &mut Session, plan: &AllInOnePlan, steps_applied: &mut Vec<String>) {
+    // 4. AI framing & visual timeline tools.
+    // Ordering invariant: `ai.autoReframe` MUST execute BEFORE `ai.generateSubtitles` (step 5)
+    // and text overlays (step 8) so any Game Stream ` (FaceCam)` split clip already exists on
+    // the sequence when `generate_subtitles` runs `detect_game_stream_split_y` (`split_y = 0.55`).
+    if plan.run_auto_reframe {
+        let mut params = json!({
+            "aspect": "9:16",
+            "resizeSequence": true,
+            "splitScreen": plan.reframe_split_screen,
+            "wait": true
+        });
+        if plan.reframe_split_screen {
+            params["facecamPlacement"] = json!("bottom");
+            params["facecamRegion"] = json!("auto");
+        }
+        if s.execute("ai.autoReframe", params).is_ok() {
+            steps_applied.push(if plan.reframe_split_screen { "Gaming Split-Screen (9:16)" } else { "AI Auto-Reframe (9:16)" }.into());
+        }
+    }
+    if plan.run_bg_removal && s.execute("ai.removeBackground", json!({"mode": "transparentAlpha", "wait": true})).is_ok() {
+        steps_applied.push("AI Background Removal".into());
+    }
+    if plan.run_vod_chapters && s.execute("ai.vodChapters", json!({"wait": true})).is_ok() {
+        steps_applied.push("Stream VOD Chapterizer".into());
+    }
+    if plan.run_viral_clips && s.execute("ai.findViralClips", json!({"wait": true})).is_ok() {
+        steps_applied.push("AI Viral Clip Finder".into());
+    }
+    if plan.run_smart_triggers && s.execute("ai.applySmartTriggers", json!({"wait": true})).is_ok() {
+        steps_applied.push("AI Smart Triggers".into());
+    }
+
+    // 5. Subtitles (always after `ai.autoReframe` so Game Stream captions anchor above FaceCam).
+    if plan.run_subtitles {
+        let mut params = json!({"wait": true});
+        if let Some(lang) = &plan.subtitle_language {
+            params["language"] = json!(lang);
+        }
+        match s.execute("ai.generateSubtitles", params) {
+            Ok(_) => steps_applied.push(match &plan.subtitle_language {
+                Some(lang) => format!("Generated AI Subtitles ({lang})"),
+                None => "Generated AI Subtitles".into(),
+            }),
+            Err(e) => steps_applied.push(format!("AI Subtitles failed: {e}")),
+        }
+    }
+}
+
+fn apply_visual_and_text_steps(s: &mut Session, sid: ItemId, plan: &AllInOnePlan, steps_applied: &mut Vec<String>) {
+    // 6. Transitions.
+    if let Some(effect_name) = &plan.transition_effect {
+        let cuts: Vec<(filmcraft_project::TrackId, Tick)> = s
+            .project
+            .sequence(sid)
+            .map(|q| {
+                q.video_tracks
+                    .iter()
+                    .filter(|tr| !tr.locked)
+                    .flat_map(|tr| tr.items.windows(2).filter(|w| w[0].end() == w[1].start).map(move |w| (tr.id, w[1].start)))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut added = 0usize;
+        for (tid, at) in cuts {
+            if s.execute("timeline.addTransition", json!({"track": tid.0, "at": at.0, "effect": effect_name})).is_ok() {
+                added += 1;
+            }
+        }
+        if added > 0 {
+            steps_applied.push(format!("Added {added} {effect_name} transition(s)"));
+        } else {
+            steps_applied.push(format!("No adjacent clip edit points found for {effect_name}"));
+        }
+    }
+
+    // 7. Visual effects, color grading, and zoom.
+    let vclips = target_video_clips(s, sid);
+    if plan.apply_bw {
+        let applied = vclips.iter().filter(|cid| s.execute("effects.apply", json!({"clips": [cid.0], "effect": "black_white"})).is_ok()).count();
+        if applied > 0 {
+            steps_applied.push(format!("Applied Black & White to {applied} clip(s)"));
+        }
+    }
+    if plan.apply_blur {
+        let applied = vclips.iter().filter(|cid| s.execute("effects.apply", json!({"clips": [cid.0], "effect": "gaussian_blur"})).is_ok()).count();
+        if applied > 0 {
+            steps_applied.push(format!("Applied Gaussian Blur to {applied} clip(s)"));
+        }
+    }
+    if plan.apply_color_grade {
+        let applied = vclips.iter().filter(|cid| s.execute("effects.apply", json!({"clips": [cid.0], "effect": "lumetri"})).is_ok()).count();
+        if applied > 0 {
+            steps_applied.push(format!("Applied Lumetri Color to {applied} clip(s)"));
+        }
+    }
+    if let Some(scale) = plan.zoom_scale {
+        let zoomed = vclips
+            .iter()
+            .filter(|cid| s.execute("effects.setParam", json!({"clip": cid.0, "effect": "motion", "param": "scale", "value": scale})).is_ok())
+            .count();
+        if zoomed > 0 {
+            steps_applied.push(format!("Set zoom scale to {scale:.0}% on {zoomed} clip(s)"));
+        }
+    }
+
+    // 8. Native text / title overlay on the timeline (after autoReframe so Game Stream split is respected).
+    if plan.run_text_overlay {
+        let text = plan.text_overlay_content.clone().unwrap_or_else(|| "Title".to_string());
+        let mut params = json!({"text": text, "newClip": true});
+        if let Some(seq) = s.project.sequence(sid)
+            && let Some(split_y) = crate::subtitles::detect_game_stream_split_y(seq)
+        {
+            let cx = f64::from(seq.settings.width.max(1)) * 0.5;
+            let cy = (f64::from(seq.settings.height.max(1)) * (split_y - 0.03).clamp(0.45, 0.70)).round();
+            params["position"] = json!([cx, cy]);
+        }
+        if s.execute("graphics.newText", params).is_ok() {
+            steps_applied.push(format!("Added Text Overlay: \"{text}\""));
+        }
+    }
+}
+
 fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> Result<AllInOneReport> {
     let seq_id = s.state.active_sequence.or_else(|| s.project.sequences().next().map(|q| q.id));
     let mut steps_applied = Vec::new();
@@ -418,196 +609,9 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
             return Ok(());
         };
 
-        // 2. Cuts, splits, and speed.
-        if out.plan.run_split_at_playhead {
-            let t = s.playhead();
-            match s.execute("timeline.razor", json!({"time": t.0})) {
-                Ok(v) => {
-                    let cuts = v.get("cuts").and_then(Value::as_u64).unwrap_or(0);
-                    steps_applied.push(if cuts > 0 { format!("Split {cuts} clip(s) at playhead") } else { "No clip under playhead to split".into() });
-                }
-                Err(e) => steps_applied.push(format!("Split failed: {e}")),
-            }
-        }
-
-        if let Some(speed) = out.plan.speed_percent {
-            let clips: Vec<u64> = target_all_clips(s, sid).into_iter().map(|c| c.0).collect();
-            if clips.is_empty() {
-                steps_applied.push("Speed change skipped (no unlocked clips on timeline)".into());
-            } else if s.execute("clip.speedDuration", json!({"clips": clips, "speed": speed})).is_ok() {
-                steps_applied.push(format!("Set clip speed to {speed:.0}%"));
-            }
-        }
-
-        if out.plan.run_remove_pauses {
-            match s.execute("ai.removePauses", json!({"wait": true})) {
-                Ok(_) => steps_applied.push("Removed silences".into()),
-                Err(e) => steps_applied.push(format!("Remove silences skipped: {e}")),
-            }
-        }
-
-        // 3. Audio operations.
-        if out.plan.run_audio_enhance && s.execute("ai.enhanceAudio", json!({"wait": true})).is_ok() {
-            steps_applied.push("AI Audio Enhance".into());
-        }
-
-        if out.plan.audio_mute {
-            let aclips = target_audio_clips(s, sid);
-            let mut muted = 0usize;
-            for cid in aclips {
-                if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "Mute"})).is_ok()
-                    && s.execute("effects.setParam", json!({"clip": cid.0, "effect": "mute", "param": "mute", "value": true})).is_ok()
-                {
-                    muted += 1;
-                }
-            }
-            if muted > 0 {
-                steps_applied.push(format!("Muted {muted} audio clip(s)"));
-            } else {
-                steps_applied.push("Mute skipped (no unlocked audio clips)".into());
-            }
-        }
-
-        if out.plan.audio_normalize {
-            let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
-            if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "normalizeAll", "db": -3.0})).is_ok() {
-                steps_applied.push("Normalized audio peaks to -3 dB".into());
-            }
-        }
-
-        if let Some(db) = out.plan.audio_gain_db {
-            let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
-            if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "adjust", "db": db})).is_ok() {
-                steps_applied.push(format!("Adjusted audio gain by {db:+.1} dB"));
-            }
-        }
-
-        // 4. AI timeline tools.
-        if out.plan.run_auto_reframe
-            && s.execute("ai.autoReframe", json!({"aspect": "9:16", "splitScreen": out.plan.reframe_split_screen, "wait": true})).is_ok()
-        {
-            steps_applied.push(if out.plan.reframe_split_screen { "Gaming Split-Screen (9:16)" } else { "AI Auto-Reframe (9:16)" }.into());
-        }
-        if out.plan.run_bg_removal && s.execute("ai.removeBackground", json!({"mode": "transparentAlpha", "wait": true})).is_ok() {
-            steps_applied.push("AI Background Removal".into());
-        }
-        if out.plan.run_beat_sync && s.execute("ai.addBeatMarkers", json!({"wait": true})).is_ok() {
-            steps_applied.push("AI Beat Sync".into());
-        }
-        if out.plan.run_vod_chapters && s.execute("ai.vodChapters", json!({"wait": true})).is_ok() {
-            steps_applied.push("Stream VOD Chapterizer".into());
-        }
-        if out.plan.run_viral_clips && s.execute("ai.findViralClips", json!({"wait": true})).is_ok() {
-            steps_applied.push("AI Viral Clip Finder".into());
-        }
-        if out.plan.run_smart_triggers && s.execute("ai.applySmartTriggers", json!({"wait": true})).is_ok() {
-            steps_applied.push("AI Smart Triggers".into());
-        }
-
-        // 5. Subtitles.
-        if out.plan.run_subtitles {
-            let mut params = json!({"wait": true});
-            if let Some(lang) = &out.plan.subtitle_language {
-                params["language"] = json!(lang);
-            }
-            match s.execute("ai.generateSubtitles", params) {
-                Ok(_) => steps_applied.push(match &out.plan.subtitle_language {
-                    Some(lang) => format!("Generated AI Subtitles ({lang})"),
-                    None => "Generated AI Subtitles".into(),
-                }),
-                Err(e) => steps_applied.push(format!("AI Subtitles failed: {e}")),
-            }
-        }
-
-        // 6. Transitions.
-        if let Some(effect_name) = &out.plan.transition_effect {
-            let cuts: Vec<(filmcraft_project::TrackId, Tick)> = s
-                .project
-                .sequence(sid)
-                .map(|q| {
-                    q.video_tracks
-                        .iter()
-                        .filter(|tr| !tr.locked)
-                        .flat_map(|tr| tr.items.windows(2).filter(|w| w[0].end() == w[1].start).map(move |w| (tr.id, w[1].start)))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let mut added = 0usize;
-            for (tid, at) in cuts {
-                if s.execute("timeline.addTransition", json!({"track": tid.0, "at": at.0, "effect": effect_name})).is_ok() {
-                    added += 1;
-                }
-            }
-            if added > 0 {
-                steps_applied.push(format!("Added {added} {effect_name} transition(s)"));
-            } else {
-                steps_applied.push(format!("No adjacent clip edit points found for {effect_name}"));
-            }
-        }
-
-        // 7. Visual effects, color grading, and zoom.
-        let vclips = target_video_clips(s, sid);
-        if out.plan.apply_bw {
-            let mut applied = 0usize;
-            for cid in &vclips {
-                if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "black_white"})).is_ok() {
-                    applied += 1;
-                }
-            }
-            if applied > 0 {
-                steps_applied.push(format!("Applied Black & White to {applied} clip(s)"));
-            }
-        }
-        if out.plan.apply_blur {
-            let mut applied = 0usize;
-            for cid in &vclips {
-                if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "gaussian_blur"})).is_ok() {
-                    applied += 1;
-                }
-            }
-            if applied > 0 {
-                steps_applied.push(format!("Applied Gaussian Blur to {applied} clip(s)"));
-            }
-        }
-        if out.plan.apply_color_grade {
-            let mut applied = 0usize;
-            for cid in &vclips {
-                if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "lumetri"})).is_ok() {
-                    applied += 1;
-                }
-            }
-            if applied > 0 {
-                steps_applied.push(format!("Applied Lumetri Color to {applied} clip(s)"));
-            }
-        }
-        if let Some(scale) = out.plan.zoom_scale {
-            let mut zoomed = 0usize;
-            for cid in &vclips {
-                if s.execute("effects.setParam", json!({"clip": cid.0, "effect": "motion", "param": "scale", "value": scale})).is_ok() {
-                    zoomed += 1;
-                }
-            }
-            if zoomed > 0 {
-                steps_applied.push(format!("Set zoom scale to {scale:.0}% on {zoomed} clip(s)"));
-            }
-        }
-
-        // 8. Native text / title overlay on the timeline.
-        if out.plan.run_text_overlay {
-            let text = out.plan.text_overlay_content.clone().unwrap_or_else(|| "Title".to_string());
-            let mut params = json!({"text": text, "newClip": true});
-            if let Some(seq) = s.project.sequence(sid)
-                && let Some(split_y) = crate::subtitles::detect_game_stream_split_y(seq)
-            {
-                let cx = f64::from(seq.settings.width.max(1)) * 0.5;
-                let cy = (f64::from(seq.settings.height.max(1)) * (split_y - 0.03).clamp(0.45, 0.70)).round();
-                params["position"] = json!([cx, cy]);
-            }
-            if s.execute("graphics.newText", params).is_ok() {
-                steps_applied.push(format!("Added Text Overlay: \"{text}\""));
-            }
-        }
-
+        apply_timing_and_audio_steps(s, sid, &out.plan, &mut steps_applied);
+        apply_ai_and_subtitle_steps(s, &out.plan, &mut steps_applied);
+        apply_visual_and_text_steps(s, sid, &out.plan, &mut steps_applied);
         Ok(())
     });
     report_res?;
@@ -866,5 +870,38 @@ mod tests {
         assert!(steps.iter().any(|v| v.as_str().is_some_and(|st| st.contains("200%"))));
         let after_count = s.project.sequence(sid).unwrap().video_tracks[0].items.len();
         assert!(after_count > before_count);
+    }
+
+    #[test]
+    fn planner_recognizes_shorts_facecam_bottom_and_subtitles_in_order() {
+        let prompt = "направи формата на видеото за шортс като фейскама отиде долу и добави субтитри";
+        let plan = plan_from_prompt(prompt, 0);
+        assert!(plan.run_auto_reframe, "must plan ai.autoReframe for Bulgarian Shorts prompt");
+        assert!(plan.reframe_split_screen, "must enable Game Stream / FaceCam split mode");
+        assert!(plan.run_subtitles, "must plan ai.generateSubtitles");
+
+        // English equivalent should plan the same Game Stream + Subtitles pipeline.
+        let en = plan_from_prompt("Make a 9:16 shorts video with facecam at the bottom and add subtitles", 0);
+        assert!(en.run_auto_reframe);
+        assert!(en.reframe_split_screen);
+        assert!(en.run_subtitles);
+
+        // Execute on demo sequence and verify `ai.autoReframe` (Game Stream Mode) runs BEFORE `ai.generateSubtitles`.
+        let mut s = make_session_with_demo();
+        let res = s.execute("ai.allInOne", json!({"prompt": prompt, "wait": true})).unwrap();
+        let steps: Vec<&str> = res["stepsApplied"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
+        let reframe_idx = steps.iter().position(|st| st.contains("Gaming Split-Screen (9:16)"));
+        let sub_idx = steps.iter().position(|st| st.contains("Subtitles"));
+        assert!(reframe_idx.is_some(), "expected Gaming Split-Screen step in {steps:?}");
+        assert!(sub_idx.is_some(), "expected AI Subtitles step in {steps:?}");
+        assert!(reframe_idx.unwrap() < sub_idx.unwrap(), "ai.autoReframe must execute before ai.generateSubtitles: {steps:?}");
+
+        // Sequence canvas must have been resized to 9:16 (1080x1920) by autoReframe.
+        let sid = s.state.active_sequence.unwrap();
+        let seq = s.project.sequence(sid).unwrap();
+        assert_eq!((seq.settings.width, seq.settings.height), (1080, 1920));
+
+        // Beat Sync command is completely removed.
+        assert!(crate::find_command("ai.addBeatMarkers").is_none());
     }
 }

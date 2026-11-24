@@ -16,7 +16,6 @@ pub mod all_in_one;
 pub mod audio_enhance;
 pub mod auto_reframe;
 pub mod autosave;
-pub mod beat_sync;
 pub mod bg_removal;
 pub mod captions;
 pub mod clip_ops;
@@ -572,10 +571,6 @@ pub struct Session {
     pub scene_jobs: Vec<scene_detect::PendingScene>,
     /// Local AI Subtitle jobs whose cues are applied on the main thread when they finish.
     pub subtitle_jobs: Vec<subtitles::PendingSubtitle>,
-    /// Local AI Beat Sync background jobs applied on completion.
-    pub beat_jobs: Vec<beat_sync::PendingBeatJob>,
-    /// Cached Beat Sync analysis for the current sequence audio layout.
-    pub beat_sync_cache: Option<beat_sync::BeatSyncCache>,
     /// Local AI Viral Clip Finder background jobs applied on completion.
     pub viral_jobs: Vec<viral_clips::PendingViralJob>,
     /// Cached Viral Clip Finder analyses keyed by sequence and target duration preset.
@@ -718,8 +713,6 @@ impl Session {
             mask_jobs: Vec::new(),
             scene_jobs: Vec::new(),
             subtitle_jobs: Vec::new(),
-            beat_jobs: Vec::new(),
-            beat_sync_cache: None,
             viral_jobs: Vec::new(),
             viral_clips_cache: Vec::new(),
             smart_trigger_jobs: Vec::new(),
@@ -835,7 +828,6 @@ impl Session {
         masks::poll(self);
         scene_detect::poll(self);
         subtitles::poll(self);
-        beat_sync::poll(self);
         viral_clips::poll(self);
         smart_triggers::poll(self);
         audio_enhance::poll(self);

@@ -298,9 +298,12 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         return;
     };
     let rate = seq.settings.frame_rate;
-    let header_w = app.ui.timeline.header_w;
-    let content = Rect::from_min_max(pos2(rect.min.x + header_w, rect.min.y + TOP_H), pos2(rect.max.x - SCROLLBAR_H, rect.max.y - SCROLLBAR_H));
-    let ruler = Rect::from_min_max(pos2(content.min.x, rect.min.y + TOP_H - RULER_H), pos2(content.max.x, rect.min.y + TOP_H));
+    let creator_mode = app.ui.experience == crate::state::AppExperience::Creator;
+    let header_w = if creator_mode { 92.0 } else { app.ui.timeline.header_w };
+    let top_h = if creator_mode { RULER_H } else { TOP_H };
+    let master_h = if creator_mode { 0.0 } else { MASTER_H };
+    let content = Rect::from_min_max(pos2(rect.min.x + header_w, rect.min.y + top_h), pos2(rect.max.x - SCROLLBAR_H, rect.max.y - SCROLLBAR_H));
+    let ruler = Rect::from_min_max(pos2(content.min.x, rect.min.y + top_h - RULER_H), pos2(content.max.x, rect.min.y + top_h));
     app.last_timeline_width = content.width();
     let painter = ui.painter().clone();
     painter.rect_filled(rect, 0.0, t.panel_bg);
@@ -319,9 +322,9 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let tracks_area = Rect::from_min_max(pos2(content.min.x, content.min.y + cap_h), content.max);
     let split_y = tracks_area.min.y + (tracks_area.height() - DIVIDER_H) * app.ui.timeline.split;
     let video_area = Rect::from_min_max(pos2(rect.min.x, tracks_area.min.y), pos2(content.max.x, split_y));
-    let audio_area = Rect::from_min_max(pos2(rect.min.x, split_y + DIVIDER_H), pos2(content.max.x, tracks_area.max.y - MASTER_H));
-    let vh = app.ui.timeline.video_track_h;
-    let ah = app.ui.timeline.audio_track_h;
+    let audio_area = Rect::from_min_max(pos2(rect.min.x, split_y + DIVIDER_H), pos2(content.max.x, tracks_area.max.y - master_h));
+    let vh = if creator_mode { app.ui.timeline.video_track_h.max(58.0) } else { app.ui.timeline.video_track_h };
+    let ah = if creator_mode { app.ui.timeline.audio_track_h.max(48.0) } else { app.ui.timeline.audio_track_h };
     let mut rows = Vec::new();
     let nv = seq.video_tracks.len();
     let (video_tops, max_vs) = video_row_tops(video_area, nv, vh, &mut app.ui.timeline.v_scroll);
@@ -335,10 +338,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     for (i, tr) in seq.audio_tracks.iter().enumerate() {
         let top = audio_area.min.y + i as f32 * ah - app.ui.timeline.a_scroll;
         let rect = Rect::from_min_max(pos2(content.min.x, top), pos2(content.max.x, top + ah));
-        rows.push(Row { track: tr.id, kind: TrackKind::Audio, index: i, rect, lane: app.ui.timeline.track_lanes.contains_key(&tr.id.0) });
+        let lane = !creator_mode && app.ui.timeline.track_lanes.contains_key(&tr.id.0);
+        rows.push(Row { track: tr.id, kind: TrackKind::Audio, index: i, rect, lane });
     }
     let (v_scroll, a_scroll) = (app.ui.timeline.v_scroll, app.ui.timeline.a_scroll);
-    let layout = Layout { content, ruler, rows, pps, scroll, split_y, v_scroll, a_scroll };
+    let layout = Layout { content, ruler, rows, pps, scroll, split_y, v_scroll, a_scroll, master_h };
     app.tl.layout = Some(layout.clone());
 
     // ---- backgrounds
@@ -407,11 +411,18 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let f = app.ui.timeline.split + div_resp.drag_delta().y / (tracks_area.height() - DIVIDER_H).max(1.0);
         app.ui.timeline.split = f.clamp(0.1, 0.9);
     }
-    // master track
-    let master = Rect::from_min_max(pos2(rect.min.x, tracks_area.max.y - MASTER_H), pos2(content.max.x, tracks_area.max.y));
-    painter.rect_filled(master, 0.0, t.tl_header_bg);
-    painter.text(pos2(rect.min.x + 44.0, master.center().y), Align2::LEFT_CENTER, tl!("Mix"), Tokens::ui(11.5), t.text);
-    mix_volume(app, ui, seq, Rect::from_min_max(pos2(rect.min.x + header_w - 72.0, master.min.y + 6.0), pos2(rect.min.x + header_w - 8.0, master.max.y - 6.0)));
+    // master track (Studio Mode only — hidden in Creator Mode for a cleaner magnetic timeline)
+    if !creator_mode {
+        let master = Rect::from_min_max(pos2(rect.min.x, tracks_area.max.y - MASTER_H), pos2(content.max.x, tracks_area.max.y));
+        painter.rect_filled(master, 0.0, t.tl_header_bg);
+        painter.text(pos2(rect.min.x + 44.0, master.center().y), Align2::LEFT_CENTER, tl!("Mix"), Tokens::ui(11.5), t.text);
+        mix_volume(
+            app,
+            ui,
+            seq,
+            Rect::from_min_max(pos2(rect.min.x + header_w - 72.0, master.min.y + 6.0), pos2(rect.min.x + header_w - 8.0, master.max.y - 6.0)),
+        );
+    }
 
     // ---- caption tracks
     if cap_n > 0 {
@@ -470,8 +481,10 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
     // ---- interaction
     interact(app, ui, seq, &layout, rect);
     super::timeline_volume::interact(app, ui, seq, &layout, aclip);
-    // track keyframes (drawn and edited on top of the clips)
-    super::timeline_automation::show(app, ui, seq, &layout, aclip);
+    // track keyframes (Studio Mode only — hidden in Creator Mode to avoid dense automation curves)
+    if !creator_mode {
+        super::timeline_automation::show(app, ui, seq, &layout, aclip);
+    }
     if cap_n > 0 {
         super::timeline_captions::interact(app, ui, seq, caption_area, &layout);
     }
@@ -1020,6 +1033,7 @@ mod waveform_drag_anchor_tests {
             split_y: 0.0,
             v_scroll: 0.0,
             a_scroll: 0.0,
+            master_h: MASTER_H,
         }
     }
 
@@ -1205,6 +1219,7 @@ mod new_track_tests {
             split_y: 200.0,
             v_scroll: 0.0,
             a_scroll: 0.0,
+            master_h: MASTER_H,
         };
         let at = |y| new_track_at(&seq, &layout, y, 50.0, 50.0);
         assert_eq!(at(40.0), Some((TrackKind::Video, Rect::from_min_max(pos2(0.0, 100.0), pos2(800.0, 150.0)))));
@@ -1242,6 +1257,7 @@ mod new_track_tests {
             split_y,
             v_scroll: 0.0,
             a_scroll: 0.0,
+            master_h: MASTER_H,
         };
         let at = |y: f32| layout.row_at(y).map(|r| r.track.0);
         assert_eq!(at(260.0), Some(1), "V1 above the divider");
@@ -1285,6 +1301,7 @@ mod new_track_tests {
             split_y: 150.0,
             v_scroll: 0.0,
             a_scroll: 0.0,
+            master_h: MASTER_H,
         };
         assert_eq!(new_track_at(&seq, &layout, 10.0, 50.0, 50.0), Some((TrackKind::Video, Rect::from_min_max(pos2(0.0, 0.0), pos2(800.0, 50.0)))));
         // scrolled to the bottom, V1..V3 fill the area as before

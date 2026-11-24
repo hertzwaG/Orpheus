@@ -197,9 +197,10 @@ pub enum CreatorInspectorTab {
 /// Active tool in the Creator left rail / shared collapsible drawer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CreatorTool {
+    #[serde(alias = "Audio")]
+    Actions,
     Media,
     Text,
-    Audio,
     Ai,
 }
 
@@ -221,8 +222,6 @@ pub struct AiToolsState {
     pub threshold_db: f64,
     pub min_pause_ms: f64,
     pub padding_ms: f64,
-    pub beat_sensitivity: filmcraft_engine::beat_sync::BeatSensitivity,
-    pub beat_interval: filmcraft_engine::beat_sync::BeatInterval,
     pub viral_duration: filmcraft_engine::viral_clips::ViralDurationPreset,
     pub trigger_density: filmcraft_engine::smart_triggers::TriggerDensity,
     pub trigger_zoom_punch_ins: bool,
@@ -262,8 +261,6 @@ pub struct AiToolsState {
     pub subtitle_download_job: Option<u64>,
     #[serde(skip)]
     pub subtitle_generate_job: Option<u64>,
-    #[serde(skip)]
-    pub beat_sync_job: Option<u64>,
     #[serde(skip)]
     pub viral_clips_job: Option<u64>,
     #[serde(skip)]
@@ -314,7 +311,6 @@ pub struct AiJobQueue {
 impl AiToolsState {
     pub fn has_active_mutation_job(&self) -> bool {
         self.subtitle_generate_job.is_some()
-            || self.beat_sync_job.is_some()
             || self.viral_clips_job.is_some()
             || self.smart_triggers_job.is_some()
             || self.audio_enhance_job.is_some()
@@ -336,8 +332,6 @@ impl Default for AiToolsState {
             threshold_db: -38.0,
             min_pause_ms: 450.0,
             padding_ms: 80.0,
-            beat_sensitivity: filmcraft_engine::beat_sync::BeatSensitivity::Medium,
-            beat_interval: filmcraft_engine::beat_sync::BeatInterval::EveryBeat,
             viral_duration: filmcraft_engine::viral_clips::ViralDurationPreset::Short15To30,
             trigger_density: filmcraft_engine::smart_triggers::TriggerDensity::Balanced,
             trigger_zoom_punch_ins: true,
@@ -369,7 +363,6 @@ impl Default for AiToolsState {
             subtitle_engine_download_error: None,
             subtitle_download_job: None,
             subtitle_generate_job: None,
-            beat_sync_job: None,
             viral_clips_job: None,
             smart_triggers_job: None,
             audio_enhance_job: None,
@@ -681,6 +674,8 @@ pub struct UiState {
     pub creator_media_open: bool,
     #[serde(default)]
     pub creator_tool: Option<CreatorTool>,
+    #[serde(default)]
+    pub creator_hook_text: String,
     #[serde(default)]
     pub creator_inspector: CreatorInspectorTab,
     #[serde(default)]
@@ -1261,7 +1256,8 @@ impl Default for UiState {
             experience: AppExperience::default(),
             start_screen: true,
             creator_media_open: true,
-            creator_tool: Some(CreatorTool::Media),
+            creator_tool: Some(CreatorTool::Actions),
+            creator_hook_text: String::new(),
             creator_inspector: CreatorInspectorTab::default(),
             ai_tools: AiToolsState::default(),
             project_experiences: Vec::new(),

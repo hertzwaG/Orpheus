@@ -85,7 +85,7 @@ pub fn paint(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, area: Re
     if seq.caption_tracks.is_empty() {
         return;
     }
-    let hw = app.ui.timeline.header_w;
+    let hw = (layout.content.min.x - area.min.x).max(0.0);
     let content = layout.content;
     let painter = ui.painter().with_clip_rect(area);
     let sel = app.session.state.caption_selection.clone();

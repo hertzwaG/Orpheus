@@ -4258,7 +4258,6 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::export_tools::commands());
     v.extend(crate::transcript::commands());
     v.extend(crate::silence::commands());
-    v.extend(crate::beat_sync::commands());
     v.extend(crate::viral_clips::commands());
     v.extend(crate::smart_triggers::commands());
     v.extend(crate::sfx_pack::commands());

@@ -599,14 +599,13 @@ fn documentation_modal(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
         );
         section(
             ui,
-            "2. Built-In AI Studio (7 Engines)",
+            "2. Built-In AI Studio (6 Engines)",
             "• Orpheus All-In-One Co-Pilot: Natural-language timeline command executor (English & Bulgarian) for subtitles, title overlays, cuts, speed, transitions, color/VFX, audio leveling, and local Ollama planning (http://127.0.0.1:11434).\n\
              • AI Subtitles & Auto-Cut Silence: Local Vulkan GPU / CPU Whisper transcription with language context prompts, Reels formatting, and silence trimming.\n\
-             • AI Beat Sync: Pure-Rust RMS, bass-transient, and STFT spectral flux beat detector with BPM estimation, timeline markers, and beat-aligned video cuts.\n\
              • AI Viral Clip Finder: Deterministic hook, speech pacing, and energy scorer for 15–30s, 30–60s, and 60–90s highlight segments.\n\
              • AI Audio Enhance: 80 Hz rumble filter, STFT spectral noise reduction (Light / Balanced / Studio Strong), Voice Clarity EQ + de-esser, and BS.1770-4 -14.0 LUFS auto-leveling + true-peak limiter.\n\
              • AI Smart Triggers: Speech-emphasis AutoBezier zoom punch-ins, synthesized SFX accents, and callout markers.\n\
-             • AI Auto-Reframe + Gaming Split-Screen & AI Background Removal: Pure-Rust subject tracking (9:16 / 4:5 / 1:1), 65%/35% Gaming Split-Screen corner FaceCam isolation, and foreground segmentation (Transparent Alpha / Blur Background / Solid Color) with optional local .onnx model support.",
+             • AI Auto-Reframe + Gaming Split-Screen & AI Background Removal: Pure-Rust subject tracking (9:16 / 4:5 / 1:1), 55%/45% Gaming Split-Screen corner FaceCam isolation, and foreground segmentation (Transparent Alpha / Blur Background / Solid Color) with optional local .onnx model support.",
         );
         section(
             ui,
@@ -645,7 +644,7 @@ fn quick_start_modal(app: &mut FilmcraftApp, ui: &mut egui::Ui) {
         };
         step(ui, "1. Import or Generate Media", "Use the Import tab (Browse files…, Demo footage, Demo project, or Bars and Tone) to bring footage into your project.");
         step(ui, "2. Edit on the Timeline", "Press Space to play/pause, V for Selection, C for Razor, Cmd/Ctrl+K to split at playhead, and Cmd/Ctrl+Z to undo any edit.");
-        step(ui, "3. Run Offline AI Tools", "Open the AI Tools panel: use Orpheus All-In-One for prompt-driven scenes and workflows, Audio & Text for Subtitles/Beats/Audio Enhance, and Video & Visuals for Auto-Reframe, Split-Screen, Smart Triggers, and Background Removal.");
+        step(ui, "3. Run Offline AI Tools", "Open the AI Tools panel: use Orpheus All-In-One for prompt-driven scenes and workflows, Audio & Text for Subtitles & Audio Enhance, and Video & Visuals for Auto-Reframe, Split-Screen, Smart Triggers, and Background Removal.");
         step(ui, "4. Export", "Press Cmd/Ctrl+M or switch to Export mode to render H.264/HEVC/ProRes/WAV masters locally.");
     });
     ui.separator();

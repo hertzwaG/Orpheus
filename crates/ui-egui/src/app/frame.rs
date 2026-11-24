@@ -52,7 +52,6 @@ impl FilmcraftApp {
             || self.ui.tts.download_job.is_some()
             || self.ui.ai_tools.subtitle_download_job.is_some()
             || self.ui.ai_tools.subtitle_generate_job.is_some()
-            || self.ui.ai_tools.beat_sync_job.is_some()
             || self.ui.ai_tools.viral_clips_job.is_some()
             || self.ui.ai_tools.smart_triggers_job.is_some()
             || self.ui.ai_tools.audio_enhance_job.is_some()

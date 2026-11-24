@@ -1440,7 +1440,7 @@ mod marquee_tests {
     fn layout(v_scroll: f32, a_scroll: f32) -> Layout {
         let content = Rect::from_min_max(pos2(0.0, 0.0), pos2(1000.0, 600.0));
         let ruler = Rect::from_min_max(pos2(0.0, 0.0), pos2(1000.0, 20.0));
-        Layout { content, ruler, rows: Vec::new(), pps: 100.0, scroll: 0.0, split_y: 300.0, v_scroll, a_scroll }
+        Layout { content, ruler, rows: Vec::new(), pps: 100.0, scroll: 0.0, split_y: 300.0, v_scroll, a_scroll, master_h: super::super::MASTER_H }
     }
 
     /// #2978: V1 scrolled down under the audio tracks, behind A1. A box drawn on A1 takes A1's

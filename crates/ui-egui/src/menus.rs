@@ -205,48 +205,6 @@ pub(crate) fn menu_items_with_focus(app: &FilmcraftApp, ctx: &egui::Context) -> 
     items
 }
 
-fn invoke_beat_sync(app: &mut FilmcraftApp, id: &str, mut params: Value) -> Result<Value, String> {
-    if let Some(obj) = params.as_object_mut() {
-        obj.entry("sensitivity".to_string()).or_insert_with(|| json!(app.ui.ai_tools.beat_sensitivity.as_id()));
-        obj.entry("interval".to_string()).or_insert_with(|| json!(app.ui.ai_tools.beat_interval.step()));
-    }
-    let r = app.session.execute(id, params).map_err(|e| e.to_string());
-    match &r {
-        Ok(v) => {
-            if let Some(jid) = v["job"].as_u64() {
-                app.ui.ai_tools.beat_sync_job = Some(jid);
-                app.ui.status = tl!("Analyzing audio beats…").into();
-            } else {
-                app.ui.ai_tools.beat_sync_job = None;
-                let n = v["applied"].as_u64().unwrap_or(0);
-                app.ui.status = match id {
-                    "ai.addBeatMarkers" => {
-                        if n > 0 {
-                            tlf!("Added {n} beat markers", n = n)
-                        } else {
-                            tl!("No beats detected in audio").into()
-                        }
-                    }
-                    "ai.cutVideoToBeats" => {
-                        if n > 0 {
-                            tlf!("Applied {n} beat cuts to video", n = n)
-                        } else {
-                            tl!("No beats detected in audio").into()
-                        }
-                    }
-                    _ => tlf!(
-                        "Detected {count} beats ({bpm} BPM)",
-                        count = v["count"].as_u64().unwrap_or(0),
-                        bpm = format!("{:.0}", v["bpm"].as_f64().unwrap_or(0.0))
-                    ),
-                };
-            }
-        }
-        Err(e) => app.ui.status = e.clone(),
-    }
-    r
-}
-
 fn inject_subtitle_defaults(app: &FilmcraftApp, params: &mut Value) {
     if let Some(obj) = params.as_object_mut() {
         let mode_str = app.ui.ai_tools.subtitle_style.as_id();
@@ -865,10 +823,7 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             }
             return r;
         }
-        "ai.analyzeBeats"
-        | "ai.addBeatMarkers"
-        | "ai.cutVideoToBeats"
-        | "ai.findViralClips"
+        "ai.findViralClips"
         | "ai.applySmartTriggers"
         | "ai.enhanceAudio"
         | "ai.autoReframe"
@@ -882,7 +837,6 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             app.ui.status = tlf!("Queued AI task ({n} in queue)…", n = n);
             return Ok(json!({ "queued": true, "queueLen": n }));
         }
-        "ai.analyzeBeats" | "ai.addBeatMarkers" | "ai.cutVideoToBeats" => return invoke_beat_sync(app, id, params),
         "ai.findViralClips" | "ai.jumpToViralClip" | "ai.extractViralClip" => return invoke_viral_clips(app, ctx, id, params),
         "ai.applySmartTriggers" => return invoke_smart_triggers(app, params),
         "ai.enhanceAudio" => return invoke_audio_enhance(app, params),
@@ -1969,6 +1923,7 @@ mod tests {
         let reset = ws.iter().position(|it| it.id == "window.workspace.reset");
         assert!(matches!((editing, reset), (Some(e), Some(r)) if e < r), "workspaces come before the layout commands");
         assert!(items.iter().any(|it| it.id == "file.save" && it.path == ["File"]));
+        assert!(!items.iter().any(|it| it.id == "ai.addBeatMarkers" || it.id == "ai.analyzeBeats" || it.id == "ai.cutVideoToBeats"));
     }
 
     /// #1500: like a native menu bar, while one menu is open hovering another title opens it.

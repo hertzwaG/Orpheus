@@ -306,3 +306,50 @@ fn redesigned_import_workspace_and_i18n() {
     assert_eq!(d.find_elem("import.", "import.media.filter.all")["label"], "Всички");
     assert_eq!(d.find_elem("import.", "import.media.filter.images")["label"], "Изображения");
 }
+
+#[test]
+fn redesigned_creator_mode_dock_aspect_toggle_and_mode_switch() {
+    let mut d = Driver::start(vec![]);
+    d.ok("engine.execute", json!({"command": "file.openDemoProject", "params": {}}));
+    d.ok("ui.click", json!({"id": "start.creator"}));
+    d.frames(2);
+    assert_eq!(d.harness.state().ui.experience, AppExperience::Creator);
+
+    // Top All-In-One prompt bar + 1-Click Creator Actions dock + Timeline bar controls are visible
+    let _ = d.find_elem("creator.", "creator.prompt.input");
+    let _ = d.find_elem("creator.", "creator.prompt.run");
+    let _ = d.find_elem("creator.", "creator.card.autoShorts");
+    let _ = d.find_elem("creator.", "creator.card.gameStream");
+    let _ = d.find_elem("creator.", "creator.subtitles.language");
+    let _ = d.find_elem("creator.", "creator.subtitles.style.pop");
+    let _ = d.find_elem("creator.", "creator.card.addBoldTitle");
+    let _ = d.find_elem("creator.", "creator.card.removePauses");
+    let _ = d.find_elem("creator.", "creator.card.enhanceAudio");
+    let _ = d.find_elem("creator.", "creator.card.quickExport");
+    let _ = d.find_elem("creator.", "creator.action.split");
+    let _ = d.find_elem("creator.", "creator.action.delete");
+    let _ = d.find_elem("creator.", "creator.action.speed");
+
+    // Aspect ratio toggle under preview switches between 9:16 Vertical and 16:9 Widescreen
+    d.ok("ui.click", json!({"id": "creator.aspect.vertical"}));
+    d.frames(2);
+    let seq = d.harness.state().session.active_sequence().unwrap();
+    assert_eq!((seq.settings.width, seq.settings.height), (1080, 1920));
+    let clips_before = seq.video_tracks[0].items.len();
+
+    d.ok("ui.click", json!({"id": "creator.aspect.widescreen"}));
+    d.frames(2);
+    let seq = d.harness.state().session.active_sequence().unwrap();
+    assert_eq!((seq.settings.width, seq.settings.height), (1920, 1080));
+
+    // Seamless Studio <-> Creator mode switch preserves timeline state
+    d.ok("ui.click", json!({"id": "header.experience.studio"}));
+    d.frames(2);
+    assert_eq!(d.harness.state().ui.experience, AppExperience::Studio);
+    assert_eq!(d.harness.state().session.active_sequence().unwrap().video_tracks[0].items.len(), clips_before);
+
+    d.ok("ui.click", json!({"id": "header.experience.creator"}));
+    d.frames(2);
+    assert_eq!(d.harness.state().ui.experience, AppExperience::Creator);
+    assert_eq!(d.harness.state().session.active_sequence().unwrap().video_tracks[0].items.len(), clips_before);
+}

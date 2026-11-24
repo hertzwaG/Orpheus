@@ -37,6 +37,10 @@ fn patch_button(ui: &mut egui::Ui, button: PatchButton<'_>) -> egui::Response {
 /// Draw only the visible track headers, including colour label, targeting, lock and header controls clipped to each row.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn draw_headers(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, rows: &[Row], rect: Rect, vclip: Rect, aclip: Rect, t: &Tokens) {
+    if app.ui.experience == crate::state::AppExperience::Creator {
+        draw_creator_headers(app, ui, seq, rows, rect, vclip, aclip, t);
+        return;
+    }
     let hw = app.ui.timeline.header_w;
     let tg = app.session.targeting();
     let mut actions: Vec<(String, Value)> = Vec::new();
@@ -310,5 +314,83 @@ fn header_line_buttons(
         }
         let kr = small(x + 54.0, upper_y);
         crate::panels::timeline_automation::header_button(app, ui, seq, r, kr, visible, label, t);
+    }
+}
+
+/// Simplified, clutter-free track headers for Creator Mode (`V1`/`A1` pill + visibility/mute + lock).
+#[allow(clippy::too_many_arguments)]
+fn draw_creator_headers(app: &mut FilmcraftApp, ui: &mut egui::Ui, seq: &Sequence, rows: &[Row], rect: Rect, vclip: Rect, aclip: Rect, t: &Tokens) {
+    let hw = 92.0;
+    let mut actions: Vec<(String, Value)> = Vec::new();
+    for r in rows {
+        let Some(tr) = seq.track(r.track) else { continue };
+        let clip_rect = if r.kind == TrackKind::Video { vclip } else { aclip };
+        let hrect = Rect::from_min_max(pos2(rect.min.x, r.rect.min.y), pos2(rect.min.x + hw, r.rect.max.y));
+        let visible = hrect.intersect(clip_rect);
+        if visible.height() <= 0.0 {
+            continue;
+        }
+        let p = ui.painter().with_clip_rect(visible);
+        p.rect_filled(hrect, 0.0, t.tl_header_bg);
+        p.line_segment([pos2(hrect.min.x, hrect.max.y - 0.5), pos2(hrect.max.x, hrect.max.y - 0.5)], Stroke::new(1.0, t.separator));
+
+        let label = format!("{}{}", if r.kind == TrackKind::Video { "V" } else { "A" }, r.index + 1);
+        let badge_col = if r.kind == TrackKind::Video { Color32::from_rgb(0x2F, 0x6F, 0xED) } else { Color32::from_rgb(0x10, 0xB9, 0x81) };
+        let badge = Rect::from_center_size(pos2(hrect.min.x + 22.0, hrect.center().y), vec2(28.0, 20.0));
+        p.rect_filled(badge, 4.0, badge_col.gamma_multiply(0.85));
+        p.text(badge.center(), Align2::CENTER_CENTER, &label, Tokens::semibold(10.5), Color32::WHITE);
+
+        let toggle_r = Rect::from_center_size(pos2(hrect.min.x + 54.0, hrect.center().y), vec2(20.0, 20.0));
+        if r.kind == TrackKind::Video {
+            let eresp = crate::widgets::icon_toggle(
+                ui,
+                toggle_r.intersect(visible),
+                if tr.enabled { Icon::Eye } else { Icon::EyeOff },
+                true,
+                t,
+                egui::Id::unique(("creator-eye", r.track.0)),
+                Some(if tr.enabled { t.text } else { t.text_dim }),
+            );
+            app.auto.add(&format!("timeline.track.{label}.enabled"), toggle_r, "Toggle Track Output");
+            if eresp.clicked() {
+                actions.push(("timeline.setTrack".into(), json!({"track": r.track.0, "enabled": !tr.enabled})));
+            }
+        } else {
+            let mresp = crate::widgets::letter_toggle_clipped(
+                ui,
+                toggle_r,
+                visible,
+                "M",
+                tr.muted,
+                Color32::from_rgb(0x2d, 0x9d, 0x78),
+                t,
+                egui::Id::unique(("creator-mute", r.track.0)),
+            );
+            app.auto.add(&format!("timeline.track.{label}.muted"), toggle_r, "Mute Track");
+            if mresp.clicked() {
+                actions.push(("timeline.setTrack".into(), json!({"track": r.track.0, "muted": !tr.muted})));
+            }
+        }
+
+        let lock_r = Rect::from_center_size(pos2(hrect.min.x + 77.0, hrect.center().y), vec2(18.0, 18.0));
+        let lresp = crate::widgets::icon_toggle(
+            ui,
+            lock_r.intersect(visible),
+            if tr.locked { Icon::Lock } else { Icon::Unlock },
+            true,
+            t,
+            egui::Id::unique(("creator-lock", r.track.0)),
+            Some(if tr.locked { t.icon_active } else { t.text_dim }),
+        );
+        app.auto.add(&format!("timeline.track.{label}.locked"), lock_r, "Toggle Track Lock");
+        if lresp.clicked() {
+            actions.push(("timeline.setTrack".into(), json!({"track": r.track.0, "locked": !tr.locked})));
+        }
+    }
+    ui.painter().line_segment([pos2(rect.min.x + hw - 0.5, vclip.min.y), pos2(rect.min.x + hw - 0.5, aclip.max.y)], Stroke::new(1.0, t.separator));
+    for (cmd, params) in actions {
+        if let Err(e) = app.session.execute(&cmd, params) {
+            app.ui.status = e.to_string();
+        }
     }
 }

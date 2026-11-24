@@ -27,6 +27,19 @@ pub fn ruler_steps(frame_px: f64, base: i64) -> (i64, i64) {
 pub(super) fn draw_top(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, seq: &Sequence, layout: &Layout, t: &Tokens, seq_id: ItemId) {
     let p = ui.painter().clone();
     let ruler = layout.ruler;
+    if app.ui.experience == crate::state::AppExperience::Creator {
+        // Creator Mode: clean timecode pill beside the ruler (no dense Studio 15-tool strip).
+        let tc_box = Rect::from_min_max(rect.min, pos2(ruler.min.x, ruler.max.y));
+        p.rect_filled(tc_box, 0.0, t.tl_header_bg);
+        p.line_segment([pos2(tc_box.max.x - 0.5, tc_box.min.y), pos2(tc_box.max.x - 0.5, tc_box.max.y)], Stroke::new(1.0, t.separator));
+        p.line_segment([tc_box.left_bottom(), tc_box.right_bottom()], Stroke::new(1.0, t.separator));
+        let rate = seq.settings.frame_rate;
+        let tc = format_time(app.session.playhead(), rate, seq.settings.drop_frame, seq.settings.display, seq.settings.sample_rate as i64);
+        p.text(tc_box.center(), Align2::CENTER_CENTER, &tc, Tokens::semibold(11.5), t.timecode);
+        app.auto.add("timeline.timecode", tc_box, &tc);
+        draw_ruler_body(app, ui, &p, seq, layout, t, seq_id);
+        return;
+    }
     p.rect_filled(Rect::from_min_max(rect.min, pos2(rect.max.x, ruler.min.y)), 0.0, t.panel_bg);
     let strip = Rect::from_min_max(pos2(rect.min.x + 8.0, rect.min.y + 3.0), pos2(rect.max.x - 8.0, ruler.min.y - 3.0));
     draw_toolbar(app, ui, &p, strip, seq, t, seq_id);

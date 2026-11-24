@@ -267,14 +267,6 @@ fn set_ai_tools(app: &mut FilmcraftApp, p: &Value) {
     if let Some(v) = ai.get("paddingMs").and_then(Value::as_f64).filter(|v| v.is_finite()) {
         app.ui.ai_tools.padding_ms = v.clamp(0.0, 500.0);
     }
-    if let Some(v) = ai.get("beatSensitivity").and_then(Value::as_str).and_then(filmcraft_engine::beat_sync::BeatSensitivity::from_str_param) {
-        app.ui.ai_tools.beat_sensitivity = v;
-    }
-    if let Some(v) = ai.get("beatInterval")
-        && let Ok(iv) = filmcraft_engine::beat_sync::BeatInterval::from_json(&json!({"interval": v}))
-    {
-        app.ui.ai_tools.beat_interval = iv;
-    }
     if let Some(v) = ai.get("viralDuration").and_then(Value::as_str).and_then(filmcraft_engine::viral_clips::ViralDurationPreset::from_str_param) {
         app.ui.ai_tools.viral_duration = v;
     }

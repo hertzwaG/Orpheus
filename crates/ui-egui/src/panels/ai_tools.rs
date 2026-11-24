@@ -12,7 +12,6 @@ use std::sync::{Arc, PoisonError};
 use egui::{Align2, Color32, CornerRadius, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use filmcraft_engine::audio_enhance::NoiseReductionStrength;
 use filmcraft_engine::auto_reframe::{FacecamRegion, ReframeAspect, ReframeSmoothing};
-use filmcraft_engine::beat_sync::{self, BeatInterval, BeatSensitivity};
 use filmcraft_engine::bg_removal::{BgEdgeSoftness, BgRemovalMode};
 use filmcraft_engine::silence::{SilenceOptions, detect_sequence_silence};
 use filmcraft_engine::smart_triggers::TriggerDensity;
@@ -141,28 +140,6 @@ pub fn poll_jobs(app: &mut FilmcraftApp) {
                 app.ui.ai_tools.subtitle_generate_job = None;
                 app.ui.status = tlf!("Subtitle generation failed: {err}", err = e);
                 app.ui.ai_tools.push_toast(tl!("AI Subtitles"), app.ui.status.clone(), true);
-            }
-        }
-    }
-    if let Some(id) = app.ui.ai_tools.beat_sync_job {
-        match check_job_finished(app, id) {
-            None => app.ui.ai_tools.beat_sync_job = None,
-            Some(FinishedOutcome::Running) => {}
-            Some(FinishedOutcome::Ok(n)) => {
-                app.ui.ai_tools.beat_sync_job = None;
-                if let Some(cache) = beat_sync::cached_for_session(&app.session, app.ui.ai_tools.beat_sensitivity)
-                    && !cache.beats_ms.is_empty()
-                {
-                    app.ui.status = tlf!("Detected {count} beats ({bpm} BPM)", count = cache.beats_ms.len(), bpm = format!("{:.0}", cache.bpm));
-                } else if n == 0 {
-                    app.ui.status = tl!("No beats detected in audio").into();
-                }
-                app.ui.ai_tools.push_toast(tl!("AI Beat Sync"), app.ui.status.clone(), false);
-            }
-            Some(FinishedOutcome::Err(e)) => {
-                app.ui.ai_tools.beat_sync_job = None;
-                app.ui.status = tlf!("Beat Sync failed: {err}", err = e);
-                app.ui.ai_tools.push_toast(tl!("AI Beat Sync"), app.ui.status.clone(), true);
             }
         }
     }
@@ -382,8 +359,6 @@ pub fn show_toast_overlay(app: &mut FilmcraftApp, ctx: &egui::Context) {
                                 tl!("Analyzing speech for Smart Triggers…")
                             } else if app.ui.ai_tools.viral_clips_job.is_some() {
                                 tl!("Analyzing viral clips…")
-                            } else if app.ui.ai_tools.beat_sync_job.is_some() {
-                                tl!("Detecting beats…")
                             } else if app.ui.ai_tools.all_in_one_job.is_some() {
                                 tl!("Running Orpheus All-In-One…")
                             } else if app.ui.ai_tools.vod_chapters_job.is_some() {
@@ -453,8 +428,6 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                 draw_subtitles_card(app, ui, &t, &status);
                 ui.add_space(4.0);
                 draw_auto_cut_card(app, ui, &t, &status);
-                ui.add_space(4.0);
-                draw_beat_sync_card(app, ui, &t, &status);
                 ui.add_space(4.0);
                 draw_viral_clips_card(app, ui, &t, &status);
                 ui.add_space(4.0);
@@ -683,22 +656,6 @@ fn draw_hardware_badge_row(
     auto.add(badge_id, pill_r, &style.label);
 }
 
-fn beat_sensitivity_label(s: BeatSensitivity) -> &'static str {
-    match s {
-        BeatSensitivity::Low => tl!("Low"),
-        BeatSensitivity::Medium => tl!("Medium"),
-        BeatSensitivity::High => tl!("High"),
-    }
-}
-
-fn beat_interval_label(iv: BeatInterval) -> &'static str {
-    match iv {
-        BeatInterval::EveryBeat => tl!("Every Beat"),
-        BeatInterval::Every2Beats => tl!("Every 2 Beats"),
-        BeatInterval::Every4Beats => tl!("Every 4 Beats"),
-    }
-}
-
 struct ComboRowSpec<'a> {
     salt: &'a str,
     auto_id: &'a str,
@@ -732,119 +689,6 @@ fn draw_combo_row<T: Copy + PartialEq>(
         rect_out = cb.response.rect;
     });
     auto.add(spec.auto_id, rect_out, spec.label);
-}
-
-fn draw_beat_sync_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, status: &SubtitleStatus) {
-    let (_card_bg, _card_border, frame) = card_frame(t, app.ui.dark);
-    let card_w = (ui.available_width() - 14.0).max(40.0);
-    let sens = app.ui.ai_tools.beat_sensitivity;
-    let cached = beat_sync::cached_for_session(&app.session, sens).map(|c| (c.beats_ms.len(), c.bpm));
-
-    frame.show(ui, |ui| {
-        ui.set_width(card_w);
-        ui.spacing_mut().item_spacing.y = 3.0;
-        ui.spacing_mut().interact_size.y = 18.0;
-
-        ui.horizontal(|ui| {
-            let (icon_r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
-            icons::paint(ui.painter(), icon_r, Icon::Audio, Color32::from_rgb(0x38, 0xBD, 0xF8));
-            let title_w = (ui.available_width() - 22.0).max(40.0);
-            ui.add_sized(vec2(title_w, 18.0), egui::Label::new(egui::RichText::new(tl!("AI Beat Sync")).font(Tokens::semibold(13.0)).color(t.text)).truncate())
-                .on_hover_text(tl!("Automatically analyze music transients and align edits to the beat."));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                draw_help_badge(
-                    ui,
-                    &mut app.auto,
-                    t,
-                    "ai.help.beatSync",
-                    tl!("Finds musical beats and places markers or auto-cuts video to the rhythm. Needs a sequence with a music or audio track."),
-                );
-            });
-        });
-
-        draw_hardware_badge_row(ui, &mut app.auto, "ai.badge.beatSync", AiFeatureWeight::Lightweight, status, app.ui.dark);
-
-        let has_seq = app.session.active_sequence().is_some();
-        if let Some((count, bpm)) = cached {
-            let (summary, col) = if count > 0 {
-                (tlf!("Detected {count} beats ({bpm} BPM)", count = count, bpm = format!("{:.0}", bpm)), Color32::from_rgb(0x7C, 0xB3, 0xFF))
-            } else {
-                (tl!("No beats detected in audio").into(), t.text_dim)
-            };
-            let resp = ui.add(egui::Label::new(egui::RichText::new(summary.clone()).font(Tokens::ui(10.5)).color(col)).wrap());
-            app.auto.add("ai.beatSync.status", resp.rect, &summary);
-        } else if !has_seq {
-            let hint = tl!("Open a sequence with audio first");
-            let resp = ui.add(egui::Label::new(egui::RichText::new(hint).font(Tokens::ui(10.5)).color(t.text_dim)).wrap());
-            app.auto.add("ai.beatSync.status", resp.rect, hint);
-        } else {
-            let desc = tl!("Automatically analyze music transients and align edits to the beat.");
-            let resp = ui.add(egui::Label::new(egui::RichText::new(desc).font(Tokens::ui(10.5)).color(t.text_dim)).wrap());
-            app.auto.add("ai.beatSync.status", resp.rect, desc);
-        }
-
-        let sens_choices = [
-            (BeatSensitivity::Low, beat_sensitivity_label(BeatSensitivity::Low)),
-            (BeatSensitivity::Medium, beat_sensitivity_label(BeatSensitivity::Medium)),
-            (BeatSensitivity::High, beat_sensitivity_label(BeatSensitivity::High)),
-        ];
-        draw_combo_row(
-            ui,
-            &mut app.auto,
-            t,
-            &ComboRowSpec { salt: "ai-beat-sens", auto_id: "ai.beatSync.sensitivity", label: tl!("Sensitivity") },
-            &sens_choices,
-            &mut app.ui.ai_tools.beat_sensitivity,
-        );
-
-        let iv_choices = [
-            (BeatInterval::EveryBeat, beat_interval_label(BeatInterval::EveryBeat)),
-            (BeatInterval::Every2Beats, beat_interval_label(BeatInterval::Every2Beats)),
-            (BeatInterval::Every4Beats, beat_interval_label(BeatInterval::Every4Beats)),
-        ];
-        draw_combo_row(
-            ui,
-            &mut app.auto,
-            t,
-            &ComboRowSpec { salt: "ai-beat-interval", auto_id: "ai.beatSync.interval", label: tl!("Cut Interval") },
-            &iv_choices,
-            &mut app.ui.ai_tools.beat_interval,
-        );
-
-        ui.add_space(1.0);
-        if let Some(prog) = active_job_progress(app, app.ui.ai_tools.beat_sync_job) {
-            let shown = nonblocking_progress_status(&prog, tl!("Analyzing audio beats…"));
-            draw_job_bar(ui, &mut app.auto, t, prog.fraction(), &shown, &prog, "ai.beatSync.cancel");
-            return;
-        }
-
-        let sens_param = app.ui.ai_tools.beat_sensitivity.as_id();
-        let iv_step = app.ui.ai_tools.beat_interval.step();
-
-        if cached.is_none() && has_seq {
-            let analyze_label = tl!("Analyze Beats");
-            if draw_secondary_button(ui, &mut app.auto, t, "ai.beatSync.analyze", analyze_label, analyze_label) {
-                let ctx = ui.ctx().clone();
-                let _ = crate::menus::invoke(app, &ctx, "ai.analyzeBeats", json!({ "sensitivity": sens_param, "interval": iv_step }));
-            }
-        }
-
-        let marker_tip = (!has_seq).then_some(tl!("Open a sequence with audio first"));
-        let marker_clicked =
-            draw_primary_icon_button(ui, &mut app.auto, t, "ai.beatSync.addMarkers", tl!("Add Beat Markers"), Icon::Marker, has_seq, true, marker_tip);
-        if has_seq && marker_clicked {
-            let ctx = ui.ctx().clone();
-            let _ = crate::menus::invoke(app, &ctx, "ai.addBeatMarkers", json!({ "sensitivity": sens_param, "interval": iv_step }));
-        }
-
-        let cut_tip = (!has_seq).then_some(tl!("Open a sequence with audio first"));
-        let cut_clicked =
-            draw_primary_icon_button(ui, &mut app.auto, t, "ai.beatSync.cutVideo", tl!("Auto-Cut Video to Beats"), Icon::Razor, has_seq, false, cut_tip);
-        if has_seq && cut_clicked {
-            let ctx = ui.ctx().clone();
-            let _ = crate::menus::invoke(app, &ctx, "ai.cutVideoToBeats", json!({ "sensitivity": sens_param, "interval": iv_step }));
-        }
-    });
 }
 
 fn viral_duration_label(p: ViralDurationPreset) -> &'static str {
@@ -2722,7 +2566,7 @@ fn cached_preview(app: &FilmcraftApp, ctx: &egui::Context) -> (usize, f64) {
     res
 }
 
-fn cached_subtitle_status(ctx: &egui::Context, downloading: bool) -> SubtitleStatus {
+pub(crate) fn cached_subtitle_status(ctx: &egui::Context, downloading: bool) -> SubtitleStatus {
     let now = ctx.input(|i| i.time);
     let cache_id = egui::Id::unique("ai-subtitles-status-cache");
     if let Some((saved_at, saved_dl, st)) = ctx.data(|d| d.get_temp::<(f64, bool, SubtitleStatus)>(cache_id))
