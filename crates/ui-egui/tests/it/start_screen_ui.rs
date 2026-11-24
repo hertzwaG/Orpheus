@@ -1,5 +1,5 @@
-//! Headless UI tests for the two-column Start Screen: layout, i18n language switching, mode
-//! card launching, New Project action, Recent Projects opening and async Open Project… flow.
+//! Headless UI tests for the Orpheus three-column Home / Start Screen: layout, mode card
+//! launching, Recent Projects, Quick Actions (Open Project / About / Settings) and async open.
 
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
@@ -77,41 +77,50 @@ impl Driver {
 }
 
 #[test]
-fn two_column_layout_and_dynamic_i18n() {
+fn three_column_layout_and_quick_actions() {
     let mut d = Driver::start(vec!["/work/Reel_One.fcproj".into()]);
     assert!(d.harness.state().ui.start_screen);
 
     let creator = d.elem("start.creator");
     let studio = d.elem("start.studio");
-    let new_btn = d.elem("start.newProject");
-    let open_btn = d.elem("start.openProject");
     let recent0 = d.elem("start.recent.0");
+    let view_all = d.elem("start.recent.viewAll");
+    let open_btn = d.elem("start.openProject");
+    let qa_open = d.elem("start.quick.openProject");
+    let qa_about = d.elem("start.quick.about");
+    let qa_settings = d.elem("start.quick.settings");
 
-    // Two-column split geometry: Creator | Studio side-by-side, buttons below, Recent on right
+    // Three-column equal-height layout: Creator | Studio | Recent Projects, Quick Actions below
     assert_eq!(creator["rect"][1], studio["rect"][1]);
+    assert_eq!(creator["rect"][3], studio["rect"][3]);
     assert!(creator["rect"][0].as_f64().unwrap() < studio["rect"][0].as_f64().unwrap());
-    assert!(new_btn["rect"][1].as_f64().unwrap() > creator["rect"][1].as_f64().unwrap() + creator["rect"][3].as_f64().unwrap());
-    assert_eq!(new_btn["rect"][1], open_btn["rect"][1]);
     assert!(recent0["rect"][0].as_f64().unwrap() > studio["rect"][0].as_f64().unwrap() + studio["rect"][2].as_f64().unwrap());
+    assert!(view_all["rect"][0].as_f64().unwrap() > studio["rect"][0].as_f64().unwrap() + studio["rect"][2].as_f64().unwrap());
+    assert!(open_btn["rect"][0].as_f64().unwrap() > studio["rect"][0].as_f64().unwrap() + studio["rect"][2].as_f64().unwrap());
 
-    assert_eq!(new_btn["label"], "New Project");
-    assert_eq!(open_btn["label"], "Open Project…");
+    // Quick Actions bar centered below the cards in a single horizontal row
+    let cards_bottom = creator["rect"][1].as_f64().unwrap() + creator["rect"][3].as_f64().unwrap();
+    assert!(qa_open["rect"][1].as_f64().unwrap() > cards_bottom);
+    assert_eq!(qa_open["rect"][1], qa_about["rect"][1]);
+    assert_eq!(qa_about["rect"][1], qa_settings["rect"][1]);
+    assert!(qa_open["rect"][0].as_f64().unwrap() < qa_about["rect"][0].as_f64().unwrap());
+    assert!(qa_about["rect"][0].as_f64().unwrap() < qa_settings["rect"][0].as_f64().unwrap());
 
-    // Switching languages dynamically updates all welcome buttons
-    d.ok("ui.menu.invoke", json!({"command": "app.language.bulgarian"}));
+    // Quick Actions: About opens About dialog, Settings opens Preferences dialog
+    d.ok("ui.click", json!({"id": "start.quick.about"}));
     d.frames(2);
-    assert_eq!(d.elem("start.newProject")["label"], "Нов проект");
-    assert_eq!(d.elem("start.openProject")["label"], "Отваряне на проект…");
+    assert_eq!(d.harness.state().dialog, Some(filmcraft_ui_egui::Dialog::About));
+    d.harness.state_mut().dialog = None;
+    d.frames(1);
 
-    d.ok("ui.menu.invoke", json!({"command": "app.language.german"}));
+    d.ok("ui.click", json!({"id": "start.quick.settings"}));
     d.frames(2);
-    assert_eq!(d.elem("start.newProject")["label"], "Neues Projekt");
-    assert_eq!(d.elem("start.openProject")["label"], "Projekt öffnen…");
+    assert_eq!(d.harness.state().dialog, Some(filmcraft_ui_egui::Dialog::Preferences));
 }
 
 #[test]
-fn mode_cards_new_project_and_async_open_work() {
-    // 1. Clicking Creator card launches Creator workspace
+fn mode_cards_and_async_open_work() {
+    // 1. Clicking Creator card launches Creator workspace with a fresh project
     let mut d = Driver::start(vec![]);
     d.ok("ui.click", json!({"id": "start.creator"}));
     d.frames(2);
@@ -119,27 +128,15 @@ fn mode_cards_new_project_and_async_open_work() {
     assert_eq!(d.harness.state().ui.experience, AppExperience::Creator);
     assert_eq!(d.harness.state().ui.mode, Mode::Edit);
 
-    // 2. Clicking Studio card launches Studio workspace
+    // 2. Clicking Studio card launches Studio workspace with a fresh project
     let mut d = Driver::start(vec![]);
     d.ok("ui.click", json!({"id": "start.studio"}));
     d.frames(2);
     assert!(!d.harness.state().ui.start_screen);
     assert_eq!(d.harness.state().ui.experience, AppExperience::Studio);
-
-    // 3. Clicking New Project starts a fresh untitled project in the selected experience
-    let mut d = Driver::start(vec![]);
-    d.harness.state_mut().ui.experience = AppExperience::Creator;
-    d.ok("engine.execute", json!({"command": "file.openDemoProject", "params": {}}));
-    assert_eq!(d.harness.state().session.project.name, "Orpheus – Demo Project");
-    d.ok("ui.click", json!({"id": "start.newProject"}));
-    d.frames(2);
-    assert!(!d.harness.state().ui.start_screen);
     assert_eq!(d.harness.state().ui.mode, Mode::Edit);
-    assert_eq!(d.harness.state().ui.experience, AppExperience::Creator);
-    assert_eq!(d.harness.state().session.project.name, "Untitled");
-    assert_eq!(d.harness.state().session.path, None);
 
-    // 4. Clicking Open Project… via async file picker dismisses start screen and restores mode
+    // 3. Clicking Open Project via async file picker dismisses start screen and restores mode
     let dir = std::env::temp_dir().join(format!("orpheus-start-open-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&dir);
     let proj_path = dir.join("saved.fcproj").to_string_lossy().into_owned();
@@ -164,6 +161,7 @@ fn mode_cards_new_project_and_async_open_work() {
 }
 
 #[test]
+#[allow(clippy::cognitive_complexity)]
 fn ai_tools_panel_and_creator_integration() {
     let mut d = Driver::start(vec![]);
     d.ok("engine.execute", json!({"command": "file.openDemoProject", "params": {}}));
@@ -178,7 +176,7 @@ fn ai_tools_panel_and_creator_integration() {
     assert_eq!(d.find_elem("ai.", "ai.minPauseMs")["label"], "Minimum Pause");
     assert_eq!(d.find_elem("ai.", "ai.paddingMs")["label"], "Cut Padding");
     assert_eq!(d.find_elem("ai.", "ai.removePauses")["label"], "Remove Pauses");
-    assert_eq!(d.find_elem("ai.", "ai.subtitles.cliStatus")["label"].is_string(), true);
+    assert!(d.find_elem("ai.", "ai.subtitles.cliStatus")["label"].is_string());
     assert_eq!(d.find_elem("ai.", "ai.subtitles.language")["label"], "Language");
     assert_eq!(d.find_elem("ai.", "ai.subtitles.model")["label"], "AI Model");
     assert_eq!(d.find_elem("ai.", "ai.subtitles.compute.gpu")["label"], "GPU");

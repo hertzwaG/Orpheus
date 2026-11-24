@@ -28,6 +28,14 @@ iconography, images or other Adobe assets; open licences only; every asset attri
 | `assets/orpheus/orpheus-lyre-256.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
 | `assets/orpheus/orpheus-lyre-128.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
 | `assets/orpheus/orpheus.ico` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
+| `assets/home/home_backdrop.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
+| `docs/assets/home_backdrop.png` | Orpheus contributors | Original work (copy of `assets/home/home_backdrop.png` for the YBV Studio portal) | MIT OR Apache-2.0 |
+| `docs/assets/orpheus-home.jpg` | Orpheus contributors | Original work: Orpheus v1.0.10 home screen screenshot | MIT OR Apache-2.0 |
+| `docs/assets/orpheus-creator-mode.jpg` | Orpheus contributors | Original work: Orpheus v1.0.10 Creator Mode screenshot with procedural demo media | MIT OR Apache-2.0 |
+| `docs/assets/orpheus-studio-mode.jpg` | Orpheus contributors | Original work: Orpheus v1.0.10 Studio Mode screenshot with procedural demo media | MIT OR Apache-2.0 |
+| `docs/assets/orpheus-import.jpg` | Orpheus contributors | Original work: Orpheus v1.0.10 Import screen screenshot with procedural demo media | MIT OR Apache-2.0 |
+| `assets/home/creator_card_art.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
+| `assets/home/studio_card_art.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
 | `crates/ui-egui/assets/orpheus_logo.png` | Orpheus contributors | Original work | MIT OR Apache-2.0 |
 | `assets/fonts/Inter-Medium.ttf` | The Inter Project Authors | https://github.com/rsms/inter | OFL-1.1 (`assets/fonts/OFL-Inter.txt`) |
 | `assets/fonts/Inter-SemiBold.ttf` | The Inter Project Authors | https://github.com/rsms/inter | OFL-1.1 (`assets/fonts/OFL-Inter.txt`) |

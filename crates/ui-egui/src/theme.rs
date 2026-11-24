@@ -389,6 +389,9 @@ impl Tokens {
     pub fn bold(size: f32) -> FontId {
         FontId::new(size, FontFamily::Name("bold".into()))
     }
+    pub fn serif(size: f32) -> FontId {
+        FontId::new(size, FontFamily::Name("serif".into()))
+    }
     pub fn display_rounded(size: f32) -> FontId {
         FontId::new(size, FontFamily::Name("display-rounded".into()))
     }
@@ -431,11 +434,13 @@ pub fn install(ctx: &egui::Context, t: &Tokens) {
     fonts.font_data.insert("inter-semibold".into(), Arc::new(FontData::from_static(filmcraft_text::fonts::INTER_SEMIBOLD)));
     fonts.font_data.insert("inter-bold".into(), Arc::new(FontData::from_static(filmcraft_text::fonts::INTER_BOLD)));
     fonts.font_data.insert("jbmono".into(), Arc::new(FontData::from_static(filmcraft_text::fonts::JETBRAINS_MONO_REGULAR)));
+    fonts.font_data.insert("noto-serif".into(), Arc::new(FontData::from_static(filmcraft_text::fonts::NOTO_SERIF_REGULAR)));
     fonts.families.entry(FontFamily::Proportional).or_default().insert(0, "inter".into());
     fonts.families.entry(FontFamily::Monospace).or_default().insert(0, "jbmono".into());
     fonts.families.insert(FontFamily::Name("semibold".into()), vec!["inter-semibold".into(), "inter".into()]);
     fonts.families.insert(FontFamily::Name("medium".into()), vec!["inter-medium".into(), "inter".into()]);
     fonts.families.insert(FontFamily::Name("bold".into()), vec!["inter-bold".into(), "inter-semibold".into(), "inter".into()]);
+    fonts.families.insert(FontFamily::Name("serif".into()), vec!["noto-serif".into(), "inter-semibold".into(), "inter".into()]);
     let mut display_rounded = vec!["inter-bold".into(), "inter".into()];
     if let Some(face) = crate::cjk::rounded_display_font() {
         fonts.font_data.insert("system-rounded-display".into(), face);

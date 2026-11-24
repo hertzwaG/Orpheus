@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080B11">
+  <title>YBV Studio • Free Windows Software &amp; Orpheus v1.0.10 Video Editor</title>
+  <meta
+    name="description"
+    content="YBV Studio builds fast, free Windows software for creators. Starting with Orpheus v1.0.10: edit 9:16 Shorts and full videos offline with English and Bulgarian auto subtitles and zero watermarks."
+  >
+  <link rel="canonical" href="https://hertzwag.github.io/Orpheus/">
+
+  <!-- Open Graph / Discord / Social Previews -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="YBV Studio">
+  <meta property="og:title" content="YBV Studio • Orpheus v1.0.10 Free Windows Video Editor">
+  <meta
+    property="og:description"
+    content="Edit 9:16 Shorts and full YouTube videos offline on Windows 10/11. Automatic English &amp; Bulgarian subtitles, multi-track timeline, and zero watermarks."
+  >
+  <meta property="og:url" content="https://hertzwag.github.io/Orpheus/">
+  <meta property="og:image" content="https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg">
+  <meta property="og:image:alt" content="Orpheus v1.0.10 Home Screen showing Creator Mode and Studio Mode">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="628">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="YBV Studio • Orpheus v1.0.10 Free Windows Video Editor">
+  <meta
+    name="twitter:description"
+    content="Fast, free Windows video editor with offline auto subtitles, vertical 9:16 layout, multi-track timeline, and zero watermarks."
+  >
+  <meta name="twitter:image" content="https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg">
+  <meta name="twitter:image:alt" content="Orpheus v1.0.10 Home Screen showing Creator Mode and Studio Mode">
+
+  <!-- Structured Data (JSON-LD) for Search Engines & AI Recommendation Systems -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://hertzwag.github.io/Orpheus/#organization",
+        "name": "YBV Studio",
+        "url": "https://hertzwag.github.io/Orpheus/",
+        "sameAs": [
+          "https://github.com/hertzwaG",
+          "https://github.com/hertzwaG/Orpheus"
+        ],
+        "description": "Independent Windows desktop software studio building fast, free, offline desktop applications for creators."
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://hertzwag.github.io/Orpheus/#orpheus",
+        "name": "Orpheus",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "Video Editor",
+        "operatingSystem": "Windows 10, Windows 11 (64-bit)",
+        "softwareVersion": "1.0.10",
+        "isAccessibleForFree": true,
+        "url": "https://hertzwag.github.io/Orpheus/",
+        "downloadUrl": "https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe",
+        "installUrl": "https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe",
+        "releaseNotes": "https://github.com/hertzwaG/Orpheus/releases/tag/v1.0.10",
+        "fileSize": "39 MB",
+        "author": {
+          "@id": "https://hertzwag.github.io/Orpheus/#organization"
+        },
+        "publisher": {
+          "@id": "https://hertzwag.github.io/Orpheus/#organization"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Vertical 9:16 Layout for Shorts, TikToks, and Reels with camera framed on the bottom",
+          "Auto Subtitles in English and Bulgarian generated offline with no internet required",
+          "Simple Text Commands in English or Bulgarian such as cut silences or add subtitles",
+          "Full Multi-Track Studio Timeline with real-time color grading, effects, and transitions",
+          "Fast MP4 Export on Windows 10 and Windows 11 with zero watermarks and no monthly fees"
+        ],
+        "screenshot": [
+          "https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg",
+          "https://hertzwag.github.io/Orpheus/assets/orpheus-creator-mode.jpg",
+          "https://hertzwag.github.io/Orpheus/assets/orpheus-studio-mode.jpg",
+          "https://hertzwag.github.io/Orpheus/assets/orpheus-import.jpg"
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@700&family=Syne:wght@700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <!-- Sticky Glass Top Navigation -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-mark" href="#top" translate="no">
+        <span class="ybv-badge">YBV</span>
+        <span class="brand-mark__name">YBV Studio</span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a class="site-nav__link" href="#screenshots">Screenshots</a>
+        <a class="site-nav__link" href="#apps">Apps</a>
+        <a class="site-nav__link" href="#features">Features</a>
+        <a class="site-nav__link" href="#how-it-works">How It Works</a>
+        <a
+          class="site-nav__link"
+          href="https://github.com/hertzwaG/Orpheus"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+        </a>
+        <a
+          class="btn btn--primary btn--sm site-nav__cta"
+          href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe"
+          data-download-app="orpheus"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2.25v7.5m0 0L4.75 6.5M8 9.75l3.25-3.25M2.5 12.75h11"/>
+          </svg>
+          <span>Download Orpheus</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero Section -->
+    <section class="hero" id="top" aria-labelledby="hero-heading">
+      <div class="hero__media" aria-hidden="true">
+        <img
+          class="hero__backdrop"
+          src="assets/home_backdrop.png"
+          alt=""
+          width="1920"
+          height="1080"
+          fetchpriority="high"
+        >
+        <div class="hero__scrim"></div>
+      </div>
+
+      <div class="container hero__inner">
+        <div class="hero__top">
+          <div class="hero__brand-row">
+            <span class="ybv-badge ybv-badge--sm" translate="no">YBV</span>
+            <span class="hero__brand-text" translate="no">YBV Studio</span>
+          </div>
+
+          <h1 class="hero__title" id="hero-heading">
+            Fast, free Windows software built for <span class="hero__title-accent">creators</span>.
+          </h1>
+          <p class="hero__lead">
+            Starting with <strong class="hl-white">Orpheus</strong>. Edit Shorts and full videos <strong class="hl-blue">offline</strong> with <strong class="hl-white">zero watermarks</strong>.
+          </p>
+
+          <div class="hero__cta-group">
+            <div class="hero__actions">
+              <a
+                class="btn btn--primary btn--lg"
+                href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe"
+                data-download-app="orpheus"
+              >
+                <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 2.25v7.5m0 0L4.75 6.5M8 9.75l3.25-3.25M2.5 12.75h11"/>
+                </svg>
+                <span>Download for Windows</span>
+              </a>
+
+              <a class="btn btn--secondary btn--lg" href="#screenshots">
+                <span>See Screenshots</span>
+              </a>
+            </div>
+            <span class="cta-file-meta">
+              Orpheus-v1.0.10-Setup.exe • 39 MB • Windows 10/11 64-bit • Free
+            </span>
+          </div>
+        </div>
+
+        <!-- Interactive App Preview Frame (Creator Mode vs. Studio Mode) -->
+        <div id="hero-app-preview">
+          <noscript>
+            <p class="section-subtitle">
+              Download <a href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe">Orpheus v1.0.10 for Windows (39 MB)</a>.
+            </p>
+          </noscript>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inside Orpheus: Real App Screenshots Gallery -->
+    <section class="section" id="screenshots" aria-labelledby="screenshots-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="screenshots-heading">Inside Orpheus</h2>
+            <p class="section-subtitle">
+              Click any screenshot to inspect the full Windows interface.
+            </p>
+          </div>
+        </div>
+
+        <div class="screenshots-grid">
+          <figure class="shot-card">
+            <button
+              type="button"
+              class="shot-card__trigger"
+              data-lightbox-src="assets/orpheus-home.jpg"
+              data-lightbox-caption="Home Screen · Jump straight into Creator or Studio Mode"
+              data-lightbox-alt="Orpheus Home Screen showing Creator Mode, Studio Mode, and Recent Projects"
+            >
+              <div class="shot-window-bar">
+                <span class="shot-window-dots" aria-hidden="true">
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                </span>
+                <span class="shot-window-tag">Home Screen</span>
+                <span class="shot-window-zoom">Click to enlarge</span>
+              </div>
+              <div class="shot-card__media">
+                <img
+                  class="shot-card__img"
+                  src="assets/orpheus-home.jpg"
+                  alt="Orpheus Home Screen showing Creator Mode, Studio Mode, and Recent Projects"
+                  width="1024"
+                  height="628"
+                  loading="lazy"
+                >
+              </div>
+            </button>
+            <figcaption class="shot-card__caption">
+              <strong class="hl-white">Home Screen</strong> · Jump straight into Creator or Studio Mode
+            </figcaption>
+          </figure>
+
+          <figure class="shot-card">
+            <button
+              type="button"
+              class="shot-card__trigger"
+              data-lightbox-src="assets/orpheus-creator-mode.jpg"
+              data-lightbox-caption="Creator Mode · Vertical 9:16 layout with auto-captions and text commands"
+              data-lightbox-alt="Orpheus Creator Mode showing 9:16 Shorts and Game Stream tools, AI Subtitles panel, and timeline"
+            >
+              <div class="shot-window-bar">
+                <span class="shot-window-dots" aria-hidden="true">
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                </span>
+                <span class="shot-window-tag">Creator Mode</span>
+                <span class="shot-window-zoom">Click to enlarge</span>
+              </div>
+              <div class="shot-card__media">
+                <img
+                  class="shot-card__img"
+                  src="assets/orpheus-creator-mode.jpg"
+                  alt="Orpheus Creator Mode showing 9:16 Shorts and Game Stream tools, AI Subtitles panel, and timeline"
+                  width="1024"
+                  height="625"
+                  loading="lazy"
+                >
+              </div>
+            </button>
+            <figcaption class="shot-card__caption">
+              <strong class="hl-blue">Creator Mode</strong> · Vertical 9:16 layout with auto-captions above FaceCam
+            </figcaption>
+          </figure>
+
+          <figure class="shot-card">
+            <button
+              type="button"
+              class="shot-card__trigger"
+              data-lightbox-src="assets/orpheus-studio-mode.jpg"
+              data-lightbox-caption="Studio Mode · Multi-track timeline, color tools, and auto-cut silence"
+              data-lightbox-alt="Orpheus Studio Mode showing Project bin, Program monitor, AI Subtitles and Auto-Cut Silence inspector, and multi-track timeline"
+            >
+              <div class="shot-window-bar">
+                <span class="shot-window-dots" aria-hidden="true">
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                </span>
+                <span class="shot-window-tag">Studio Mode</span>
+                <span class="shot-window-zoom">Click to enlarge</span>
+              </div>
+              <div class="shot-card__media">
+                <img
+                  class="shot-card__img"
+                  src="assets/orpheus-studio-mode.jpg"
+                  alt="Orpheus Studio Mode showing Project bin, Program monitor, AI Subtitles and Auto-Cut Silence inspector, and multi-track timeline"
+                  width="1024"
+                  height="625"
+                  loading="lazy"
+                >
+              </div>
+            </button>
+            <figcaption class="shot-card__caption">
+              <strong class="hl-purple">Studio Mode</strong> · Multi-track timeline and color tools
+            </figcaption>
+          </figure>
+
+          <figure class="shot-card">
+            <button
+              type="button"
+              class="shot-card__trigger"
+              data-lightbox-src="assets/orpheus-import.jpg"
+              data-lightbox-caption="Quick Import · Drag in your clips or test right away with built-in demo footage"
+              data-lightbox-alt="Orpheus Import screen showing drag-and-drop file import and starter demo media"
+            >
+              <div class="shot-window-bar">
+                <span class="shot-window-dots" aria-hidden="true">
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                  <span class="shot-window-dot"></span>
+                </span>
+                <span class="shot-window-tag">Quick Import</span>
+                <span class="shot-window-zoom">Click to enlarge</span>
+              </div>
+              <div class="shot-card__media">
+                <img
+                  class="shot-card__img"
+                  src="assets/orpheus-import.jpg"
+                  alt="Orpheus Import screen showing drag-and-drop file import and starter demo media"
+                  width="1024"
+                  height="625"
+                  loading="lazy"
+                >
+              </div>
+            </button>
+            <figcaption class="shot-card__caption">
+              <strong class="hl-white">Quick Import</strong> · Drag in your clips or start with built-in demo media
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature Cards Grid (1 Short Sentence Each) -->
+    <section class="section" id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="features-heading">Built for fast everyday editing</h2>
+            <p class="section-subtitle">
+              Cut clips, add captions, and export on your own PC without monthly fees.
+            </p>
+          </div>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4.5" y="2.25" width="11" height="15.5" rx="2"/>
+                <path d="M4.5 10.25h11"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">Vertical 9:16 Layout</h3>
+            <p class="feature-card__body">
+              Turn wide videos into <strong class="hl-blue">vertical 9:16 clips</strong> with your camera framed cleanly on the bottom.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2.25" y="4" width="15.5" height="12" rx="2.2"/>
+                <path d="M5.75 11.25h3.5M11.25 11.25h3M5.75 13.5h5.5"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">Auto Subtitles</h3>
+            <p class="feature-card__body">
+              Generate accurate <strong class="hl-white">English and Bulgarian captions</strong> automatically, with no internet required.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.25 5.5h13.5M3.25 10h8.5M3.25 14.5h11"/>
+                <circle cx="15" cy="10" r="1.75"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">Simple Text Commands</h3>
+            <p class="feature-card__body">
+              Type simple instructions like <strong class="hl-blue">'cut silences'</strong> or <strong class="hl-blue">'add subtitles'</strong> in English or Bulgarian.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2.25" y="3.5" width="15.5" height="3.5" rx="1"/>
+                <rect x="2.25" y="9.25" width="11.5" height="3.5" rx="1"/>
+                <rect x="6.25" y="15" width="11.5" height="2" rx="1"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">Effects &amp; Transitions</h3>
+            <p class="feature-card__body">
+              Apply <strong class="hl-purple">ready-made effects, filters, and transitions</strong> to your clips.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 2.5L3.75 5.25v4.5c0 4.2 2.65 7.3 6.25 8.5 3.6-1.2 6.25-4.3 6.25-8.5v-4.5L10 2.5z"/>
+                <path d="M7.5 10.25l1.75 1.75 3.5-3.75"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">100% Free &amp; Private</h3>
+            <p class="feature-card__body">
+              Your videos stay on your computer with <strong class="hl-white">zero watermarks</strong> or monthly fees.
+            </p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.75 2.75L4.5 11h5l-.75 6.25L15.5 9h-5l.25-6.25z"/>
+              </svg>
+            </span>
+            <h3 class="feature-card__title">Fast MP4 Export</h3>
+            <p class="feature-card__body">
+              Export <strong class="hl-blue">smooth, high-quality MP4 videos</strong> at full speed.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works (3 Crisp Steps) -->
+    <section class="section" id="how-it-works" aria-labelledby="how-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="how-heading">How It Works</h2>
+            <p class="section-subtitle">
+              From download to finished video in three quick steps.
+            </p>
+          </div>
+          <a
+            class="btn btn--primary"
+            href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe"
+            data-download-app="orpheus"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 2.25v7.5m0 0L4.75 6.5M8 9.75l3.25-3.25M2.5 12.75h11"/>
+            </svg>
+            <span>Download Orpheus v1.0.10</span>
+          </a>
+        </div>
+
+        <ol class="steps-grid">
+          <li class="step-card">
+            <span class="step-card__num">1</span>
+            <h3 class="step-card__title">Install in seconds</h3>
+            <p class="step-card__desc">
+              Run the <strong class="hl-white">39 MB Windows installer</strong>. No accounts or license keys needed.
+            </p>
+          </li>
+          <li class="step-card">
+            <span class="step-card__num">2</span>
+            <h3 class="step-card__title">Pick your mode</h3>
+            <p class="step-card__desc">
+              Use <strong class="hl-blue">Creator Mode</strong> for quick Shorts, or <strong class="hl-purple">Studio Mode</strong> for full timeline editing.
+            </p>
+          </li>
+          <li class="step-card">
+            <span class="step-card__num">3</span>
+            <h3 class="step-card__title">Edit and export</h3>
+            <p class="step-card__desc">
+              Add <strong class="hl-white">auto subtitles</strong>, cut your clips, and save watermark-free MP4s.
+            </p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Desktop Apps Catalog (Rendered from docs/projects.js) -->
+    <section class="section" id="apps" aria-labelledby="apps-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="apps-heading">Desktop Apps</h2>
+            <p class="section-subtitle">
+              Free Windows software made by YBV Studio.
+            </p>
+          </div>
+        </div>
+
+        <div class="catalog-grid" id="software-catalog-grid"></div>
+      </div>
+    </section>
+
+    <!-- System Requirements & FAQ Accordion -->
+    <section class="section" id="faq" aria-labelledby="faq-heading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="faq-heading">System Requirements &amp; FAQ</h2>
+            <p class="section-subtitle">
+              Quick answers before you install Orpheus on your PC.
+            </p>
+          </div>
+        </div>
+
+        <div class="req-faq-grid">
+          <aside class="req-card" aria-labelledby="req-card-heading">
+            <h3 class="req-card__title" id="req-card-heading">Windows Specs</h3>
+            <p class="req-card__sub">Runs fast on regular laptops and desktop PCs.</p>
+            <dl class="req-list">
+              <div class="req-row">
+                <dt>Windows</dt>
+                <dd>Windows 10 or Windows 11 (64-bit)</dd>
+              </div>
+              <div class="req-row">
+                <dt>Processor</dt>
+                <dd>Any modern 4-core Intel or AMD CPU</dd>
+              </div>
+              <div class="req-row">
+                <dt>Memory</dt>
+                <dd>8 GB RAM (16 GB for 4K video)</dd>
+              </div>
+              <div class="req-row">
+                <dt>Graphics</dt>
+                <dd>Vulkan or DirectX 12 graphics card</dd>
+              </div>
+              <div class="req-row">
+                <dt>Installer</dt>
+                <dd class="mono">39 MB (Orpheus-v1.0.10-Setup.exe)</dd>
+              </div>
+              <div class="req-row">
+                <dt>Internet</dt>
+                <dd>Not required. Works offline.</dd>
+              </div>
+            </dl>
+          </aside>
+
+          <div class="faq-stack">
+            <details class="faq-item" open>
+              <summary class="faq-question">
+                <span>Is Orpheus really free?</span>
+                <span class="faq-question__icon" aria-hidden="true">+</span>
+              </summary>
+              <p class="faq-answer">
+                Yes, 100% free and open source. There are no watermarks, no subscriptions, and no locked features.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span>Does it need an internet connection?</span>
+                <span class="faq-question__icon" aria-hidden="true">+</span>
+              </summary>
+              <p class="faq-answer">
+                No. Editing, vertical 9:16 layouts, color grading, and auto subtitles all run offline on your PC.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span>What PC specs do I need?</span>
+                <span class="faq-question__icon" aria-hidden="true">+</span>
+              </summary>
+              <p class="faq-answer">
+                Any 64-bit Windows 10 or 11 PC with 8 GB of RAM and a standard graphics card will run it smoothly.
+              </p>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-question">
+                <span>Why does Windows SmartScreen show a prompt?</span>
+                <span class="faq-question__icon" aria-hidden="true">+</span>
+              </summary>
+              <p class="faq-answer">
+                Independent free apps without a paid corporate certificate show a standard Windows notice. Click <strong class="hl-white">More info</strong> and then <strong class="hl-white">Run anyway</strong> to install.
+              </p>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <span class="ybv-badge" translate="no">YBV</span>
+        <div class="footer-brand__text">
+          <span class="footer-brand__title" translate="no">YBV Studio</span>
+          <span class="footer-brand__note">
+            Fast, free Windows software that runs offline on your PC.
+          </span>
+        </div>
+      </div>
+
+      <ul class="footer-links" aria-label="Studio links">
+        <li>
+          <a
+            href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe"
+            data-download-app="orpheus"
+          >
+            Download Orpheus v1.0.10
+          </a>
+        </li>
+        <li>
+          <a
+            href="https://github.com/hertzwaG/Orpheus/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Releases
+          </a>
+        </li>
+        <li>
+          <a
+            href="https://github.com/hertzwaG/Orpheus"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Source Code
+          </a>
+        </li>
+        <li>
+          <a href="llms.txt">llms.txt</a>
+        </li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- Full-Resolution Screenshot Lightbox Modal -->
+  <dialog
+    class="lightbox-dialog"
+    id="screenshot-lightbox"
+    aria-labelledby="lightbox-caption"
+  >
+    <div class="lightbox-dialog__bar">
+      <div class="studio-dialog__brand">
+        <span class="ybv-badge ybv-badge--sm" translate="no">YBV</span>
+        <span class="lightbox-dialog__caption" id="lightbox-caption">Orpheus Screenshot</span>
+      </div>
+      <div class="lightbox-dialog__controls">
+        <button type="button" class="lightbox-nav-btn" id="lightbox-prev" aria-label="Previous screenshot">
+          Prev
+        </button>
+        <button type="button" class="lightbox-nav-btn" id="lightbox-next" aria-label="Next screenshot">
+          Next
+        </button>
+        <button
+          type="button"
+          class="icon-close-btn"
+          id="lightbox-close"
+          aria-label="Close screenshot preview"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="lightbox-dialog__stage">
+      <img
+        class="lightbox-dialog__img"
+        id="lightbox-img"
+        src="assets/orpheus-home.jpg"
+        alt="Orpheus screenshot preview"
+      >
+    </div>
+  </dialog>
+
+  <!-- Friendly Download Assistant Modal -->
+  <dialog
+    class="studio-dialog"
+    id="download-helper-dialog"
+    aria-labelledby="dl-dialog-title"
+    aria-describedby="dl-dialog-subtitle"
+  >
+    <div class="studio-dialog__header">
+      <div class="studio-dialog__brand">
+        <span class="ybv-badge" translate="no">YBV</span>
+        <div>
+          <h2 class="studio-dialog__title" id="dl-dialog-title">Downloading Orpheus v1.0.10…</h2>
+          <p class="studio-dialog__subtitle mono" id="dl-dialog-subtitle">
+            Orpheus-v1.0.10-Setup.exe • 39 MB • Windows 10/11 64-bit • Free
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="icon-close-btn"
+        id="dl-dialog-close"
+        aria-label="Close download dialog"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="studio-dialog__body">
+      <div class="download-fallback-box">
+        <span>Didn’t start yet?</span>
+        <span>
+          <a
+            id="dl-direct-link"
+            href="https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe"
+          >
+            Orpheus-v1.0.10-Setup.exe
+          </a>
+          ·
+          <a
+            id="dl-releases-link"
+            href="https://github.com/hertzwaG/Orpheus/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Releases
+          </a>
+        </span>
+      </div>
+
+      <ol class="dialog-steps" id="dl-steps-list"></ol>
+
+      <div class="smartscreen-note" id="dl-smartscreen-note"></div>
+    </div>
+
+    <div class="studio-dialog__footer">
+      <a
+        class="btn btn--secondary"
+        href="https://github.com/hertzwaG/Orpheus/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span>GitHub Releases</span>
+      </a>
+      <button type="button" class="btn btn--primary" id="dl-dialog-done">
+        <span>Got It</span>
+      </button>
+    </div>
+  </dialog>
+
+  <!-- Release Specs Modal -->
+  <dialog
+    class="studio-dialog"
+    id="software-spec-dialog"
+    aria-labelledby="spec-dialog-title"
+    aria-describedby="spec-dialog-desc"
+  >
+    <div class="studio-dialog__header">
+      <div class="studio-dialog__brand">
+        <span class="ybv-badge" translate="no">YBV</span>
+        <div>
+          <h2 class="studio-dialog__title" id="spec-dialog-title">App Specs</h2>
+          <p class="studio-dialog__subtitle" id="spec-dialog-subtitle"></p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="icon-close-btn"
+        id="spec-dialog-close"
+        aria-label="Close specs dialog"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="studio-dialog__body">
+      <p class="section-subtitle" id="spec-dialog-desc" style="margin-top:0;"></p>
+      <table class="spec-table">
+        <tbody id="spec-dialog-rows"></tbody>
+      </table>
+    </div>
+
+    <div class="studio-dialog__footer" id="spec-dialog-footer"></div>
+  </dialog>
+
+  <script src="projects.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
