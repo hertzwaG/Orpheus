@@ -10,7 +10,11 @@
     github:
       '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 12.6c-2.8.85-2.8-1.4-3.9-1.7m7.8 3.4v-2.2a1.9 1.9 0 0 0-.55-1.5c1.8-.2 3.7-.9 3.7-4a3.1 3.1 0 0 0-.82-2.15 2.9 2.9 0 0 0-.08-2.12s-.67-.21-2.2.82a7.6 7.6 0 0 0-4 0C4.62 2.12 3.95 2.33 3.95 2.33a2.9 2.9 0 0 0-.08 2.12 3.1 3.1 0 0 0-.82 2.15c0 3.1 1.9 3.8 3.7 4a1.9 1.9 0 0 0-.55 1.5v2.2"/></svg>',
     specs:
-      '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.25" y="2.75" width="11.5" height="10.5" rx="2"/><path d="M5.25 6h5.5M5.25 9.5h3.5"/></svg>'
+      '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.25" y="2.75" width="11.5" height="10.5" rx="2"/><path d="M5.25 6h5.5M5.25 9.5h3.5"/></svg>',
+    lyre:
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5C5.2 6.5 4.5 7.4 4.5 8.5c0 1.4 1.2 2 1.8 3.5.7 1.7.7 5.2 5.7 5.2s5-3.5 5.7-5.2c.6-1.5 1.8-2.1 1.8-3.5 0-1.1-.7-2-2-2"/><path d="M7.5 8h9"/><path d="M10 8v8.8M12 8v9.2M14 8v8.8"/><path d="M9.5 19.5h5"/></svg>',
+    apollo:
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.25"/><path d="M12 2.75v2.5M12 18.75v2.5M2.75 12h2.5M18.75 12h2.5M5.46 5.46l1.77 1.77M16.77 16.77l1.77 1.77M18.54 5.46l-1.77 1.77M7.23 16.77l-1.77 1.77"/></svg>'
   };
 
   function escapeHtml(value) {
@@ -41,14 +45,49 @@
     );
   }
 
+  function renderAppIcon(item) {
+    if (item.icon && ICONS[item.icon]) {
+      const cls =
+        item.icon === 'apollo'
+          ? 'app-emblem app-emblem--apollo'
+          : 'app-emblem app-emblem--orpheus';
+      return '<span class="' + cls + '" aria-hidden="true">' + ICONS[item.icon] + '</span>';
+    }
+    return renderYbvBadge('ybv-badge--sm');
+  }
+
   function renderStatusPill(item) {
+    if (Array.isArray(item.statusBadges) && item.statusBadges.length > 0) {
+      return (
+        '<div class="status-pill-group">' +
+        item.statusBadges
+          .map(function (badge) {
+            const variant = badge.variant || 'dev';
+            const dot =
+              variant === 'free'
+                ? ''
+                : '<span class="status-pill__dot" aria-hidden="true"></span>';
+            return (
+              '<span class="status-pill status-pill--' +
+              escapeHtml(variant) +
+              '">' +
+              dot +
+              escapeHtml(badge.label) +
+              '</span>'
+            );
+          })
+          .join('') +
+        '</div>'
+      );
+    }
+
     const isActive = item.status === 'active';
     const cls = isActive ? 'status-pill status-pill--active' : 'status-pill status-pill--dev';
     return (
       '<span class="' +
       cls +
       '"><span class="status-pill__dot" aria-hidden="true"></span>' +
-      escapeHtml(item.statusLabel || (isActive ? 'Free Download' : 'In Development')) +
+      escapeHtml(item.statusLabel || (isActive ? 'Free Download' : 'Coming Soon')) +
       '</span>'
     );
   }
@@ -338,7 +377,9 @@
     grid.innerHTML = items
       .map(function (item) {
         const isActive = item.status === 'active';
-        const cardClass = isActive ? 'software-card' : 'software-card software-card--dev';
+        const cardClass = isActive
+          ? 'software-card'
+          : 'software-card software-card--upcoming';
         const summaryContent = item.summaryHtml ? item.summaryHtml : escapeHtml(item.summary);
 
         const primaryAction = item.downloadUrl
@@ -378,7 +419,7 @@
           '<div>' +
           '<div class="software-card__head">' +
           '<div class="software-card__title-group">' +
-          renderYbvBadge('ybv-badge--sm') +
+          renderAppIcon(item) +
           '<div>' +
           '<h3 class="software-card__title">' +
           escapeHtml(item.name) +

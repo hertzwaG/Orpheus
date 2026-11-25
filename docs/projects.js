@@ -7,12 +7,13 @@
 window.YBV_SOFTWARE = [
   {
     id: 'orpheus',
+    icon: 'lyre',
     name: 'Orpheus',
     version: 'v1.0.10',
     status: 'active',
-    statusLabel: 'Free Download',
+    statusBadges: [{ label: 'Free Download', variant: 'active' }],
     featured: true,
-    category: 'Windows Video Editor (64-bit)',
+    category: 'AI Video Editor for Windows',
     installerFilename: 'Orpheus-v1.0.10-Setup.exe',
     fileMetaLine: 'Orpheus-v1.0.10-Setup.exe • 39 MB • Windows 10/11 64-bit • Free',
     summaryHtml:
@@ -30,6 +31,7 @@ window.YBV_SOFTWARE = [
     downloadLabel: 'Download for Windows',
     downloadCtaVersion: 'Download Orpheus v1.0.10',
     sourceUrl: 'https://github.com/hertzwaG/Orpheus',
+    sourceLabel: 'GitHub',
     releasesUrl: 'https://github.com/hertzwaG/Orpheus/releases',
     showSpecsButton: true,
     installSteps: [
@@ -50,7 +52,7 @@ window.YBV_SOFTWARE = [
       }
     ],
     smartScreenNote:
-      'Windows SmartScreen tip: Because Orpheus is an independent free app, Windows may show a blue prompt on first run. Click "More info" and then "Run anyway" to install.',
+      'Windows SmartScreen tip: Because Orpheus is an independent free desktop app, Windows may show a blue prompt on first run. Click "More info" and then "Run anyway" to install.',
     specs: [
       { label: 'Version', value: 'v1.0.10' },
       { label: 'Installer', value: 'Orpheus-v1.0.10-Setup.exe (39 MB)' },
@@ -58,7 +60,7 @@ window.YBV_SOFTWARE = [
       { label: 'Local AI Subtitles', value: 'Offline speech-to-text with zero cloud limits' },
       { label: 'Effects & Transitions', value: 'Live color grading, transitions, and visual looks' },
       { label: 'Fast MP4 Export', value: 'Smooth, high-quality MP4 video output' },
-      { label: 'License', value: '100% Free & Open Source' }
+      { label: 'Price', value: '100% Free Windows software (no subscriptions)' }
     ],
     modes: [
       {
@@ -137,19 +139,27 @@ window.YBV_SOFTWARE = [
     ]
   },
   {
-    id: 'coming-soon',
-    name: 'More Apps Coming Soon',
+    id: 'apollo',
+    icon: 'apollo',
+    name: 'Apollo',
     version: null,
-    status: 'in-development',
-    statusLabel: 'In Development',
+    status: 'coming-soon',
+    statusBadges: [
+      { label: 'Coming Soon', variant: 'soon' },
+      { label: 'Free', variant: 'free' }
+    ],
     featured: false,
-    category: 'New Windows tools in development',
+    category: 'AI Photo & Image Editor for Windows',
     summaryHtml:
-      'Lightweight <strong class="hl-white">Windows desktop tools</strong> built for speed, simplicity, and privacy. More releases coming soon.',
-    badges: [],
+      'Fast, offline photo editing and retouching with <strong class="hl-amber">built-in AI tools</strong>, layers, and color adjustments. Built for speed with <strong class="hl-white">zero subscriptions</strong>.',
+    badges: [
+      { label: 'AI Photo Tools' },
+      { label: 'Layers & Masks' },
+      { label: '100% Offline' }
+    ],
     downloadUrl: null,
     sourceUrl: 'https://github.com/hertzwaG',
-    sourceLabel: 'Follow on GitHub',
+    sourceLabel: 'Follow Updates on GitHub',
     showSpecsButton: false
   }
 ];

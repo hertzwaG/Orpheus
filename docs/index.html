@@ -55,8 +55,9 @@
         "@type": "SoftwareApplication",
         "@id": "https://hertzwag.github.io/Orpheus/#orpheus",
         "name": "Orpheus",
+        "description": "Free, offline-first AI video editor for Windows 10 and Windows 11 (64-bit) by YBV Studio featuring local AI subtitles, automatic silence removal, smart 9:16 vertical framing, AI prompt editing, and a multi-track Studio timeline with zero watermarks.",
         "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "Video Editor",
+        "applicationSubCategory": "AI Video Editor",
         "operatingSystem": "Windows 10, Windows 11 (64-bit)",
         "softwareVersion": "1.0.10",
         "isAccessibleForFree": true,
@@ -77,17 +78,44 @@
           "priceCurrency": "USD"
         },
         "featureList": [
-          "Vertical 9:16 Layout for Shorts, TikToks, and Reels with camera framed on the bottom",
-          "Auto Subtitles in English and Bulgarian generated offline with no internet required",
-          "Simple Text Commands in English or Bulgarian such as cut silences or add subtitles",
-          "Full Multi-Track Studio Timeline with real-time color grading, effects, and transitions",
-          "Fast MP4 Export on Windows 10 and Windows 11 with zero watermarks and no monthly fees"
+          "Local AI Subtitles generated offline on your PC with zero cloud limits",
+          "Automatic AI Silence Removal to detect and cut dead air in one click",
+          "Smart 9:16 Vertical Framing that converts widescreen videos into Shorts, TikToks, and Reels",
+          "AI Prompt Editing to cut silences, add hooks, and style clips from plain text",
+          "Multi-Track Studio Timeline with live color grading, effects, transitions, and fast watermark-free MP4 export"
         ],
         "screenshot": [
           "https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg",
           "https://hertzwag.github.io/Orpheus/assets/orpheus-creator-mode.jpg",
           "https://hertzwag.github.io/Orpheus/assets/orpheus-studio-mode.jpg",
           "https://hertzwag.github.io/Orpheus/assets/orpheus-import.jpg"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://hertzwag.github.io/Orpheus/#apollo",
+        "name": "Apollo",
+        "description": "Upcoming free, offline AI photo and image editor for Windows 10 and Windows 11 (64-bit) by YBV Studio featuring built-in AI photo tools, layers, masks, and color adjustments with zero subscriptions.",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "AI Photo Editor",
+        "operatingSystem": "Windows 10, Windows 11 (64-bit)",
+        "isAccessibleForFree": true,
+        "url": "https://hertzwag.github.io/Orpheus/#apps",
+        "author": {
+          "@id": "https://hertzwag.github.io/Orpheus/#organization"
+        },
+        "publisher": {
+          "@id": "https://hertzwag.github.io/Orpheus/#organization"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "AI Photo Tools for fast offline retouching and adjustments",
+          "Layers and Masks for flexible image editing",
+          "100% Offline Windows desktop app with zero subscriptions"
         ]
       }
     ]
@@ -108,9 +136,8 @@
   <!-- Sticky Glass Top Navigation -->
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand-mark" href="#top" translate="no">
+      <a class="brand-mark" href="#top" aria-label="YBV Studio Home" translate="no">
         <span class="ybv-badge">YBV</span>
-        <span class="brand-mark__name">YBV Studio</span>
       </a>
 
       <nav class="site-nav" aria-label="Primary navigation">
@@ -163,10 +190,10 @@
           </div>
 
           <h1 class="hero__title" id="hero-heading">
-            Fast, free Windows software built for <span class="hero__title-accent">creators</span>.
+            Fast, free <span class="hl-blue">AI video editor</span> for Windows.
           </h1>
           <p class="hero__lead">
-            Starting with <strong class="hl-white">Orpheus</strong>. Edit Shorts and full videos <strong class="hl-blue">offline</strong> with <strong class="hl-white">zero watermarks</strong>.
+            Edit Shorts and full videos offline with <span class="hl-white">local AI tools</span> and <span class="hl-white">zero watermarks</span>.
           </p>
 
           <div class="hero__cta-group">
@@ -560,7 +587,7 @@
                 <span class="faq-question__icon" aria-hidden="true">+</span>
               </summary>
               <p class="faq-answer">
-                Yes, 100% free and open source. There are no watermarks, no subscriptions, and no locked features.
+                Yes. Orpheus is 100% free Windows software with no subscriptions, no watermarks, and no locked features.
               </p>
             </details>
 
@@ -576,11 +603,11 @@
 
             <details class="faq-item">
               <summary class="faq-question">
-                <span>What PC specs do I need?</span>
+                <span>Do the AI tools require an internet connection or account?</span>
                 <span class="faq-question__icon" aria-hidden="true">+</span>
               </summary>
               <p class="faq-answer">
-                Any 64-bit Windows 10 or 11 PC with 8 GB of RAM and a standard graphics card will run it smoothly.
+                No. Auto-captions, silence removal, and smart 9:16 framing run 100% locally on your PC with no cloud uploads, subscriptions, or sign-ups.
               </p>
             </details>
 
@@ -636,7 +663,7 @@
             target="_blank"
             rel="noopener noreferrer"
           >
-            Source Code
+            GitHub
           </a>
         </li>
         <li>

@@ -1859,3 +1859,63 @@ div[id] {
   border-color: rgba(96, 165, 250, 0.24);
   background-color: var(--bg-canvas);
 }
+
+/* ==========================================================================
+   App Product Emblems (Orpheus Lyre & Apollo Sun/Aperture) + Status Pills
+   ========================================================================== */
+.hl-amber {
+  color: #FBBF24;
+  font-weight: 600;
+}
+
+.app-emblem {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: var(--bg-well);
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.app-emblem--orpheus {
+  color: var(--accent-ice);
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.16), rgba(10, 14, 22, 0.96));
+  border-color: rgba(96, 165, 250, 0.36);
+}
+
+.app-emblem--apollo {
+  color: #FBBF24;
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), rgba(139, 92, 246, 0.12));
+  border-color: rgba(251, 191, 36, 0.38);
+}
+
+.software-card--upcoming {
+  background-color: var(--bg-surface);
+  border-color: rgba(167, 139, 250, 0.24);
+}
+
+.software-card--upcoming:hover {
+  border-color: rgba(251, 191, 36, 0.42);
+}
+
+.status-pill-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.status-pill--soon {
+  color: #FCD34D;
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.status-pill--free {
+  color: #C4B5FD;
+  background-color: rgba(139, 92, 246, 0.14);
+  border: 1px solid rgba(167, 139, 250, 0.34);
+}
