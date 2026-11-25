@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080B11">
-  <title>YBV Studio • Professional Video Editing Software powered by Local AI System</title>
+  <title>YBV Studio • Orpheus Video Editor for Windows</title>
   <meta
     name="description"
-    content="Professional Video Editing Software powered by Local AI System. Download Orpheus v1.0.10 for Windows 10/11 — multi-track timeline editing, color grading, and built-in local AI tools, offline, free, and with zero watermarks."
+    content="Free, offline Windows video editor with multi-track timeline, color grading, local AI subtitles, and zero watermarks."
   >
   <link rel="canonical" href="https://hertzwag.github.io/Orpheus/">
 
   <!-- Open Graph / Discord / Social Previews -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="YBV Studio">
-  <meta property="og:title" content="YBV Studio • Orpheus v1.0.10 Professional Video Editing Software">
+  <meta property="og:title" content="YBV Studio • Orpheus Video Editor for Windows">
   <meta
     property="og:description"
-    content="Professional Video Editing Software powered by Local AI System for Windows 10/11 — multi-track timeline, color grading, offline AI tools, free with zero watermarks."
+    content="Free, offline Windows video editor with multi-track timeline, color grading, local AI subtitles, and zero watermarks."
   >
   <meta property="og:url" content="https://hertzwag.github.io/Orpheus/">
   <meta property="og:image" content="https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg">
@@ -27,10 +27,10 @@
 
   <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="YBV Studio • Orpheus v1.0.10 Professional Video Editing Software">
+  <meta name="twitter:title" content="YBV Studio • Orpheus Video Editor for Windows">
   <meta
     name="twitter:description"
-    content="Professional Video Editing Software powered by Local AI System for Windows — offline, free, and zero watermarks."
+    content="Free, offline Windows video editor with multi-track timeline, color grading, local AI subtitles, and zero watermarks."
   >
   <meta name="twitter:image" content="https://hertzwag.github.io/Orpheus/assets/orpheus-home.jpg">
   <meta name="twitter:image:alt" content="Orpheus v1.0.10 Home Screen showing Creator Mode and Studio Mode">
@@ -49,13 +49,13 @@
           "https://github.com/hertzwaG",
           "https://github.com/hertzwaG/Orpheus"
         ],
-        "description": "Independent Windows desktop software studio building professional offline video and photo editing software powered by a local AI system."
+        "description": "Independent Windows desktop software studio building fast, free offline video editing software with built-in local AI tools."
       },
       {
         "@type": "SoftwareApplication",
         "@id": "https://hertzwag.github.io/Orpheus/#orpheus",
         "name": "Orpheus",
-        "description": "Professional Video Editing Software powered by Local AI System for Windows 10 and Windows 11 (64-bit) by YBV Studio featuring multi-track timeline editing, live color grading, effects, and built-in local AI tools — offline, free, and with zero watermarks.",
+        "description": "Free, offline Windows desktop video editor by YBV Studio featuring multi-track timeline editing, live color grading, effects, and built-in local AI tools (Whisper auto-captions, silence removal, and smart 9:16 framing) with zero watermarks.",
         "applicationCategory": "MultimediaApplication",
         "applicationSubCategory": "Video Editor",
         "operatingSystem": "Windows 10, Windows 11 (64-bit)",
@@ -79,7 +79,7 @@
         },
         "featureList": [
           "Multi-Track Studio Timeline with live color grading, effects, transitions, and fast watermark-free MP4 export",
-          "Local AI Subtitles generated offline on your PC with zero cloud limits",
+          "Local AI Subtitles via Whisper model downloaded once on first use, then 100% offline with zero cloud limits",
           "Automatic AI Silence Removal to detect and cut dead air in one click",
           "Smart 9:16 Vertical Framing that converts widescreen videos into Shorts, TikToks, and Reels",
           "AI Prompt Editing to cut silences, add hooks, and style clips from plain text"
@@ -90,33 +90,6 @@
           "https://hertzwag.github.io/Orpheus/assets/orpheus-studio-mode.jpg",
           "https://hertzwag.github.io/Orpheus/assets/orpheus-import.jpg"
         ]
-      },
-      {
-        "@type": "SoftwareApplication",
-        "@id": "https://hertzwag.github.io/Orpheus/#apollo",
-        "name": "Apollo",
-        "description": "Upcoming pro-grade offline photo and image editor for Windows 10 and Windows 11 (64-bit) by YBV Studio featuring multi-layer photo editing, retouching, and color tools enhanced with local AI — fast, offline, and subscription-free.",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "Photo & Image Editor",
-        "operatingSystem": "Windows 10, Windows 11 (64-bit)",
-        "isAccessibleForFree": true,
-        "url": "https://hertzwag.github.io/Orpheus/#apps",
-        "author": {
-          "@id": "https://hertzwag.github.io/Orpheus/#organization"
-        },
-        "publisher": {
-          "@id": "https://hertzwag.github.io/Orpheus/#organization"
-        },
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "featureList": [
-          "Multi-layer photo editing, masks, retouching, and precision color tools",
-          "Built-in local AI photo tools running offline on your PC",
-          "100% Offline Windows desktop app with zero subscriptions"
-        ]
       }
     ]
   }
@@ -125,7 +98,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@700&family=Syne:wght@700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
     rel="stylesheet"
   >
   <link rel="stylesheet" href="styles.css">
@@ -219,7 +192,7 @@
           </div>
 
           <h1 class="hero__title" id="hero-heading">
-            Professional <span class="hl-blue">Video Editing Software</span> powered by Local AI System.
+            Professional <span class="hl-blue">Video Editing Software</span> powered by Local AI.
           </h1>
           <p class="hero__lead">
             Multi-track timeline editing, color grading, and built-in <span class="hl-white">AI tools</span> — offline, free, and with <span class="hl-white">zero watermarks</span>.
@@ -632,11 +605,11 @@
 
             <details class="faq-item">
               <summary class="faq-question">
-                <span>Do the AI tools require an internet connection or account?</span>
+                <span>How do the local AI features work in a 39 MB installer?</span>
                 <span class="faq-question__icon" aria-hidden="true">+</span>
               </summary>
               <p class="faq-answer">
-                No. Auto-captions, silence removal, and smart 9:16 framing run 100% locally on your PC with no cloud uploads, subscriptions, or sign-ups.
+                The Orpheus installer is lightweight (39 MB) so it downloads fast. Built-in tools like silence removal and 9:16 framing work immediately, while the compact local speech-to-text model (Whisper) is downloaded once on first use and stored locally — after that, everything runs 100% offline with no internet or cloud limits.
               </p>
             </details>
 
@@ -696,7 +669,13 @@
           </a>
         </li>
         <li>
-          <a href="llms.txt">llms.txt</a>
+          <a
+            href="https://github.com/hertzwaG/Orpheus/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Report a Bug / Contact
+          </a>
         </li>
       </ul>
     </div>
@@ -794,6 +773,27 @@
       </div>
 
       <ol class="dialog-steps" id="dl-steps-list"></ol>
+
+      <div class="checksum-box" id="dl-checksum-box">
+        <div class="checksum-box__top">
+          <span class="mono">SHA-256 Checksum</span>
+          <span class="checksum-box__actions">
+            <a
+              class="checksum-box__link"
+              id="dl-checksum-link"
+              href="https://github.com/hertzwaG/Orpheus/releases/tag/v1.0.10"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Verify Release
+            </a>
+            <button type="button" class="checksum-copy-btn" id="dl-checksum-copy" data-copy-hash="63977f7cc50b7545c0d3da48219af4ec9970c8b0a12adda8bc93be3b0df80786">
+              Copy
+            </button>
+          </span>
+        </div>
+        <code class="checksum-box__hash" id="dl-checksum-hash">63977f7cc50b7545c0d3da48219af4ec9970c8b0a12adda8bc93be3b0df80786</code>
+      </div>
 
       <div class="smartscreen-note" id="dl-smartscreen-note"></div>
     </div>
