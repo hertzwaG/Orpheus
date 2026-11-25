@@ -13,7 +13,7 @@ window.YBV_SOFTWARE = [
     status: 'active',
     statusBadges: [{ label: 'Free Download', variant: 'active' }],
     featured: true,
-    category: 'AI Video Editor for Windows',
+    category: 'Pro Video Editor with Built-In AI',
     installerFilename: 'Orpheus-v1.0.10-Setup.exe',
     fileMetaLine: 'Orpheus-v1.0.10-Setup.exe • 39 MB • Windows 10/11 64-bit • Free',
     summaryHtml:
@@ -149,9 +149,9 @@ window.YBV_SOFTWARE = [
       { label: 'Free', variant: 'free' }
     ],
     featured: false,
-    category: 'AI Photo & Image Editor for Windows',
+    category: 'Pro Photo & Image Editor with Built-In AI',
     summaryHtml:
-      'Fast, offline photo editing and retouching with <strong class="hl-amber">built-in AI tools</strong>, layers, and color adjustments. Built for speed with <strong class="hl-white">zero subscriptions</strong>.',
+      'Multi-layer photo editing, retouching, and color tools enhanced with <strong class="hl-amber">local AI</strong> — fast, offline, and <strong class="hl-white">subscription-free</strong>.',
     badges: [
       { label: 'AI Photo Tools' },
       { label: 'Layers & Masks' },

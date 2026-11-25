@@ -499,12 +499,12 @@ div[id] {
 
 .hero__title {
   font-family: var(--font-display);
-  font-size: clamp(2.35rem, 4.6vw, 3.7rem);
+  font-size: clamp(2.35rem, 4.4vw, 3.55rem);
   font-weight: 500;
   line-height: 1.12;
   letter-spacing: -0.025em;
   color: var(--ink-primary);
-  max-width: 19ch;
+  max-width: 24ch;
   margin-bottom: 1.15rem;
 }
 
@@ -1918,4 +1918,107 @@ div[id] {
   color: #C4B5FD;
   background-color: rgba(139, 92, 246, 0.14);
   border: 1px solid rgba(167, 139, 250, 0.34);
+}
+
+/* ==========================================================================
+   Compact Apollo Coming Soon Pill in Sticky Top Navbar (Wide Desktop Only)
+   ========================================================================== */
+.apollo-float {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 105;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  border-radius: 999px;
+  padding: 6px 10px 6px 12px;
+  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.8);
+  transition: border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.apollo-float:hover {
+  border-color: rgba(251, 191, 36, 0.72);
+  background: rgba(20, 29, 50, 0.96);
+}
+
+.apollo-float[hidden] {
+  display: none;
+}
+
+.apollo-float__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.apollo-float__icon {
+  display: inline-grid;
+  place-items: center;
+  color: #FBBF24;
+  flex-shrink: 0;
+}
+
+.apollo-float__label {
+  font-size: 0.8rem;
+  color: #FCD34D;
+  line-height: 1.2;
+}
+
+.apollo-float__label strong {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.apollo-float__dismiss {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.apollo-float__dismiss:hover {
+  color: var(--ink-primary);
+  background-color: rgba(203, 213, 225, 0.14);
+}
+
+.software-card--spotlight {
+  border-color: #FBBF24 !important;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35), var(--shadow-card);
+}
+
+@media (min-width: 1281px) and (max-width: 1680px) {
+  .site-header .header-inner {
+    padding-right: 15.5rem;
+  }
+}
+
+@media (max-width: 1280px) {
+  .apollo-float {
+    display: none;
+  }
 }

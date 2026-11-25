@@ -415,6 +415,8 @@
         return (
           '<article class="' +
           cardClass +
+          '" id="app-card-' +
+          escapeHtml(item.id) +
           '">' +
           '<div>' +
           '<div class="software-card__head">' +
@@ -720,6 +722,61 @@
     });
   }
 
+  function setupApolloFloatPill() {
+    const pill = document.getElementById('apollo-float-pill');
+    const jumpBtn = document.getElementById('apollo-float-jump');
+    const dismissBtn = document.getElementById('apollo-float-dismiss');
+    if (!pill) return;
+
+    const STORAGE_KEY = 'ybv_apollo_pill_dismissed';
+    let dismissed = false;
+    try {
+      dismissed = sessionStorage.getItem(STORAGE_KEY) === '1';
+    } catch (_) {
+      dismissed = false;
+    }
+
+    if (dismissed) {
+      pill.hidden = true;
+      return;
+    }
+
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        dismissed = true;
+        pill.hidden = true;
+        try {
+          sessionStorage.setItem(STORAGE_KEY, '1');
+        } catch (_) {
+          // Ignore storage errors
+        }
+      });
+    }
+
+    if (jumpBtn) {
+      jumpBtn.addEventListener('click', function () {
+        const targetCard =
+          document.getElementById('app-card-apollo') || document.getElementById('apps');
+        if (!targetCard) return;
+
+        const reduceMotion =
+          window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        targetCard.scrollIntoView({
+          behavior: reduceMotion ? 'auto' : 'smooth',
+          block: 'center'
+        });
+
+        targetCard.classList.remove('software-card--spotlight');
+        void targetCard.offsetWidth;
+        targetCard.classList.add('software-card--spotlight');
+        setTimeout(function () {
+          targetCard.classList.remove('software-card--spotlight');
+        }, 2200);
+      });
+    }
+  }
+
   function init() {
     const flagship =
       softwareList.find(function (item) {
@@ -730,6 +787,7 @@
     renderCatalog(softwareList);
     setupDialogs(softwareList);
     setupScreenshotLightbox();
+    setupApolloFloatPill();
   }
 
   if (document.readyState === 'loading') {
