@@ -18,11 +18,11 @@ window.YBV_SOFTWARE = [
     summaryHtml:
       'Turn raw clips into <strong class="hl-blue">Shorts</strong> or full videos in minutes. Everything runs on your PC with <strong class="hl-white">no accounts or limits</strong>.',
     description:
-      'Use Creator Mode for vertical 9:16 clips and auto subtitles, or switch to Studio Mode for multi-track editing, effects, and color grading.',
+      'Use Creator Mode for AI-assisted vertical edits and local subtitles, or switch to Studio Mode for full multi-track editing, color grading, and smart automation.',
     badges: [
-      { label: 'Auto Subtitles' },
-      { label: 'Vertical 9:16 Layout' },
-      { label: 'Fast MP4 Export' },
+      { label: 'Local AI Subtitles' },
+      { label: 'Smart 9:16 Framing' },
+      { label: 'AI Silence Removal' },
       { label: 'No Watermarks' }
     ],
     downloadUrl:
@@ -41,12 +41,12 @@ window.YBV_SOFTWARE = [
       {
         step: '2',
         title: 'Choose Creator or Studio Mode',
-        detail: 'Pick Creator Mode for fast 9:16 Shorts, or Studio Mode for a multi-track timeline.'
+        detail: 'Pick Creator Mode for fast AI edits, or Studio Mode for full timeline control.'
       },
       {
         step: '3',
         title: 'Drop your video & export',
-        detail: 'Add auto subtitles, cut your clips, and save a clean MP4 with no watermark.'
+        detail: 'Generate local AI subtitles, trim silences, and save a clean MP4 with no watermark.'
       }
     ],
     smartScreenNote:
@@ -55,8 +55,8 @@ window.YBV_SOFTWARE = [
       { label: 'Version', value: 'v1.0.10' },
       { label: 'Installer', value: 'Orpheus-v1.0.10-Setup.exe (39 MB)' },
       { label: 'System', value: 'Windows 10 & Windows 11 (64-bit)' },
-      { label: 'Auto Subtitles', value: 'English & Bulgarian (no internet required)' },
-      { label: 'Effects & Transitions', value: 'Ready-made effects, filters, and transitions' },
+      { label: 'Local AI Subtitles', value: 'Offline speech-to-text with zero cloud limits' },
+      { label: 'Effects & Transitions', value: 'Live color grading, transitions, and visual looks' },
       { label: 'Fast MP4 Export', value: 'Smooth, high-quality MP4 video output' },
       { label: 'License', value: '100% Free & Open Source' }
     ],
@@ -66,35 +66,34 @@ window.YBV_SOFTWARE = [
         theme: 'creator',
         name: 'Creator Mode',
         shortLabel: 'Creator Mode',
-        badge: 'Creator Mode • 9:16 Shorts',
-        headline: 'Vertical Shorts in one click.',
-        summary: 'Made for TikTok, Reels, and YouTube Shorts.',
+        badge: 'Creator Mode · AI-Assisted',
+        headline: 'Fast edits powered by built-in AI.',
+        summary: 'Turn raw footage into ready-to-post clips in seconds.',
         highlights: [
           {
-            title: 'Vertical 9:16 Layout',
+            title: 'AI Auto-Reframe',
             detailHtml:
-              'Turn wide videos into <strong class="hl-blue">vertical 9:16 clips</strong> with your camera framed cleanly on the bottom.'
+              'Automatically converts widescreen videos into <strong class="hl-blue">vertical 9:16 format</strong>.'
           },
           {
-            title: 'Auto Subtitles',
+            title: 'Local AI Subtitles',
             detailHtml:
-              'Generate accurate <strong class="hl-white">English and Bulgarian captions</strong> automatically, with no internet required.'
+              'Generates accurate captions <strong class="hl-white">offline with zero cloud limits</strong>.'
           },
           {
-            title: 'Simple Text Commands',
+            title: 'AI Prompt Editing',
             detailHtml:
-              'Type simple instructions like <strong class="hl-blue">\'cut silences\'</strong> or <strong class="hl-blue">\'add subtitles\'</strong> in English or Bulgarian.'
+              'Type what you want and let the AI <strong class="hl-blue">cut silences, add hooks, and style clips</strong>.'
           }
         ],
         preview: {
-          type: 'creator-split',
-          aspectLabel: 'Vertical 9:16 Layout',
-          topRegionLabel: 'Main Gameplay / Screen',
-          captionSample: '“Auto subtitles placed right above FaceCam”',
-          bottomRegionLabel: 'FaceCam Box',
-          commandExamples: [
-            { label: 'Command 1', text: 'Split to 9:16 and add captions' },
-            { label: 'Command 2', text: 'Cut silences and export MP4' }
+          type: 'creator-ai',
+          headerTitle: 'AI Workspace',
+          headerStatus: 'Offline AI Ready',
+          bannerText: 'Smart 9:16 Auto-Framing + Live AI Captions',
+          prompts: [
+            { label: 'Prompt 1', text: 'Create vertical short with bold captions' },
+            { label: 'Prompt 2', text: 'Remove dead air and add title hook' }
           ]
         }
       },
@@ -103,34 +102,35 @@ window.YBV_SOFTWARE = [
         theme: 'studio',
         name: 'Studio Mode',
         shortLabel: 'Studio Mode',
-        badge: 'Studio Mode • Full Timeline',
-        headline: 'Full control on a multi-track timeline.',
-        summary: 'For longer YouTube videos, color grading, and audio mixing.',
+        badge: 'Studio Mode · Pro Timeline',
+        headline: 'Full timeline control with AI tools.',
+        summary: 'Multi-track editing, color grading, and smart automation in one workspace.',
         highlights: [
           {
             title: 'Multi-Track Timeline',
             detailHtml:
-              'Layer <strong class="hl-purple">video, voiceovers, music, and captions</strong> with smooth playback.'
+              'Layer <strong class="hl-purple">video, audio, and captions</strong> with smooth real-time playback.'
           },
           {
-            title: 'Real-Time Color',
+            title: 'AI Audio & Pacing',
             detailHtml:
-              'Tweak <strong class="hl-white">exposure, contrast, and color looks</strong> directly in the preview.'
+              'Detect and <strong class="hl-white">cut silent pauses automatically</strong> with one click.'
           },
           {
-            title: 'Effects & Transitions',
+            title: 'Color & Effects',
             detailHtml:
-              'Apply <strong class="hl-purple">ready-made effects, filters, and transitions</strong> to your clips.'
+              'Grade colors live and apply <strong class="hl-purple">transitions or visual looks</strong> fast.'
           }
         ],
         preview: {
           type: 'studio-timeline',
-          timecode: '00:04:18:12',
+          headerTitle: 'Multi-Track Timeline',
+          headerStatus: 'AI Tools Active',
           tracks: [
-            { id: 'V3', kind: 'caption', label: 'Auto Subtitles · EN / BG', span: [12, 70] },
-            { id: 'V2', kind: 'fx', label: 'Color Look · Cinematic Grade', span: [6, 86] },
-            { id: 'V1', kind: 'video', label: 'Main_Video_1080p60.mp4', span: [0, 94] },
-            { id: 'A1', kind: 'audio', label: 'Voiceover_Mic.wav', span: [0, 90] }
+            { id: 'V3', kind: 'caption', label: 'AI Generated Subtitles', span: [12, 74] },
+            { id: 'V2', kind: 'fx', label: 'Color Grade & Effects', span: [6, 86] },
+            { id: 'V1', kind: 'video', label: 'Main Video Track', span: [0, 95] },
+            { id: 'A1', kind: 'audio', label: 'Audio & Voiceover', span: [0, 91] }
           ]
         }
       }

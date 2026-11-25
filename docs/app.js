@@ -57,16 +57,16 @@
     const preview = mode.preview;
     if (!preview) return '';
 
-    if (preview.type === 'creator-split') {
-      const commandsHtml = (preview.commandExamples || [])
-        .map(function (cmd) {
+    if (preview.type === 'creator-ai') {
+      const promptsHtml = (preview.prompts || [])
+        .map(function (prompt) {
           return (
-            '<div class="command-card">' +
+            '<div class="command-card command-card--ai">' +
             '<span class="command-card__lang">' +
-            escapeHtml(cmd.label || cmd.lang || 'Text command') +
+            escapeHtml(prompt.label || 'AI Prompt') +
             '</span>' +
             '<span class="command-card__text">“' +
-            escapeHtml(cmd.text) +
+            escapeHtml(prompt.text) +
             '”</span>' +
             '</div>'
           );
@@ -74,29 +74,23 @@
         .join('');
 
       return (
-        '<div class="workspace-stage" aria-label="Creator Mode layout preview">' +
+        '<div class="workspace-stage workspace-stage--creator" aria-label="Creator Mode AI Workspace preview">' +
         '<div class="stage-header">' +
         '<span class="stage-header__title">' +
-        escapeHtml(preview.aspectLabel) +
+        escapeHtml(preview.headerTitle || 'AI Workspace') +
         '</span>' +
-        '<span class="mono">Auto Subtitles</span>' +
+        '<span class="stage-status stage-status--creator mono">' +
+        escapeHtml(preview.headerStatus || 'Offline AI Ready') +
+        '</span>' +
         '</div>' +
-        '<div class="creator-diagram">' +
-        '<div class="vertical-frame" role="img" aria-label="9 by 16 vertical layout showing main screen on top, auto subtitles in the middle, and FaceCam on the bottom">' +
-        '<div class="vf-zone vf-zone--capture">' +
-        escapeHtml(preview.topRegionLabel) +
+        '<div class="ai-preview-box">' +
+        '<div class="ai-preview-box__badge" aria-hidden="true">9:16 + AI</div>' +
+        '<p class="ai-preview-box__title">' +
+        escapeHtml(preview.bannerText || '') +
+        '</p>' +
         '</div>' +
-        '<div class="vf-zone vf-zone--subtitles">' +
-        escapeHtml(preview.captionSample) +
-        '</div>' +
-        '<div class="vf-zone vf-zone--facecam">' +
-        escapeHtml(preview.bottomRegionLabel) +
-        '</div>' +
-        '</div>' +
-        '<div class="command-feed">' +
-        '<span class="command-feed__label">Simple text commands (English or Bulgarian)</span>' +
-        commandsHtml +
-        '</div>' +
+        '<div class="ai-prompt-stack">' +
+        promptsHtml +
         '</div>' +
         '</div>'
       );
@@ -129,11 +123,13 @@
         .join('');
 
       return (
-        '<div class="workspace-stage" aria-label="Studio Mode multi-track timeline preview">' +
+        '<div class="workspace-stage workspace-stage--studio" aria-label="Studio Mode Multi-Track Timeline preview">' +
         '<div class="stage-header">' +
-        '<span class="stage-header__title">Multi-Track Timeline &amp; Color</span>' +
-        '<span class="mono">' +
-        escapeHtml(preview.timecode) +
+        '<span class="stage-header__title">' +
+        escapeHtml(preview.headerTitle || 'Multi-Track Timeline') +
+        '</span>' +
+        '<span class="stage-status stage-status--studio mono">' +
+        escapeHtml(preview.headerStatus || 'AI Tools Active') +
         '</span>' +
         '</div>' +
         '<div class="studio-timeline">' +

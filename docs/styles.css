@@ -1783,3 +1783,79 @@ div[id] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   AI Assistant & Auto-Format Preview Card (Creator Mode) + Status Pills
+   ========================================================================== */
+.stage-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.22rem 0.58rem;
+  border-radius: 999px;
+}
+
+.stage-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.stage-status--creator {
+  color: #93C5FD;
+  background-color: var(--accent-creator-soft);
+  border: 1px solid var(--accent-creator-border);
+}
+
+.stage-status--studio {
+  color: #C4B5FD;
+  background-color: var(--accent-studio-soft);
+  border: 1px solid var(--accent-studio-border);
+}
+
+.ai-preview-box {
+  padding: 1.05rem 1.1rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.16) 0%,
+    rgba(14, 19, 29, 0.96) 72%
+  );
+  border: 1px solid var(--accent-creator-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ai-preview-box__badge {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background-color: var(--accent-creator);
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+}
+
+.ai-preview-box__title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  line-height: 1.4;
+}
+
+.ai-prompt-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.command-card--ai {
+  border-color: rgba(96, 165, 250, 0.24);
+  background-color: var(--bg-canvas);
+}
