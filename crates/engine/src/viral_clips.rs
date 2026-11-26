@@ -27,17 +27,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, NamedKeys, always, bad, bool_p, has_seq, str_p, u64_p};
-use crate::subtitles::{
-    self, ResolvedWhisperConfig, SubtitleCue, SubtitleLengthMode, WhisperRunConfig, build_audio_plan, build_subtitle_cues, extract_audio_mono, next_job_id,
-};
+use crate::subtitles::{self, ResolvedWhisperConfig, SubtitleCue, SubtitleLengthMode, WhisperRunConfig, build_audio_plan, build_subtitle_cues, next_job_id};
 use crate::{EngineError, Job, Result, Session};
 
 /// Analysis sample rate matching [`crate::subtitles::SUBTITLE_SAMPLE_RATE`].
 const VIRAL_SAMPLE_RATE: u32 = 16_000;
-/// Hard bound on analysed audio length (2 hours @ 16 kHz) to bound allocations.
-const MAX_VIRAL_SAMPLES: usize = 2 * 3600 * VIRAL_SAMPLE_RATE as usize;
+/// Hard safety bound on analysed audio length (24 hours @ 16 kHz) to support 12-hour+ VODs.
+const MAX_VIRAL_SAMPLES: usize = 24 * 3600 * VIRAL_SAMPLE_RATE as usize;
 /// Energy envelope bin step (100 ms per bin).
 const ENERGY_HOP_MS: u64 = 100;
+/// Streaming decode chunk size (10 seconds @ 16 kHz = 160,000 samples = 100 energy bins).
+const VIRAL_CHUNK_SAMPLES: usize = 10 * VIRAL_SAMPLE_RATE as usize;
 /// Maximum ranked clips returned per scan.
 const MAX_VIRAL_CLIPS: usize = 5;
 /// Maximum cached sequence/preset results retained per session.
@@ -310,6 +310,77 @@ impl AudioEnergyProfile {
         let baseline_rms = active.get(p75_idx).copied().unwrap_or(0.05).max(1e-4);
         let silence_floor = (baseline_rms * 0.14).max(1e-4);
         Some(Self { bins, baseline_rms, silence_floor, origin_ms })
+    }
+
+    /// Compute the 100 ms RMS energy envelope in 10-second streaming chunks directly from
+    /// `plan.tracks`, avoiding any full-duration `Vec<f32>` allocation on 12-hour VODs.
+    fn from_plan_streaming(
+        plan: &subtitles::AudioExtractPlan,
+        project: &Project,
+        sources: &dyn filmcraft_render::SourceProvider,
+        prog: &Progress,
+        origin_ms: u64,
+        progress_pct_cap: f64,
+    ) -> std::result::Result<Option<Self>, String> {
+        let sr = VIRAL_SAMPLE_RATE;
+        let s0 = plan.range_start.to_units_floor(i64::from(sr));
+        let s1 = plan.range_end.to_units_floor(i64::from(sr));
+        let total_samples = ((s1 - s0).max(0) as usize).min(MAX_VIRAL_SAMPLES);
+        let hop = ((sr as usize) / (1000 / ENERGY_HOP_MS as usize)).max(1);
+        let n_bins = total_samples / hop;
+        if n_bins == 0 {
+            return Ok(None);
+        }
+
+        let chunk_samples = (VIRAL_CHUNK_SAMPLES / hop).max(1) * hop;
+        let mut scratch = vec![0.0_f32; chunk_samples.min(total_samples)];
+        let mut bins = Vec::with_capacity(n_bins);
+        let mut active = Vec::new();
+        let mut offset = 0usize;
+
+        while offset + hop <= total_samples {
+            if prog.cancel.load(Ordering::Relaxed) {
+                return Err("Cancelled".into());
+            }
+            let take = ((total_samples - offset) / hop * hop).min(chunk_samples);
+            if take == 0 {
+                break;
+            }
+            let chunk_slice = &mut scratch[..take];
+            chunk_slice.fill(0.0);
+            let chunk_start = s0 + offset as i64;
+            for tr in &plan.tracks {
+                let buf = filmcraft_render::audio::track_input(project, tr, chunk_start, take, sr, sources);
+                let track_mono = filmcraft_speech::downmix(&buf.channels);
+                for (dst, &src) in chunk_slice.iter_mut().zip(track_mono.iter()) {
+                    *dst += src;
+                }
+            }
+            for bin_samples in chunk_slice.chunks_exact(hop) {
+                let mut sum_sq = 0.0_f64;
+                for &raw in bin_samples {
+                    let v = if raw.is_finite() { f64::from(raw.clamp(-1.0, 1.0)) } else { 0.0 };
+                    sum_sq += v * v;
+                }
+                let rms = (sum_sq / hop as f64).sqrt();
+                bins.push(rms);
+                if rms > 1e-4 {
+                    active.push(rms);
+                }
+            }
+            offset += take;
+            let pct = (offset as f64 / total_samples as f64) * progress_pct_cap;
+            prog.done.store(pct.round() as u64, Ordering::Relaxed);
+        }
+
+        if active.is_empty() {
+            return Ok(None);
+        }
+        active.sort_by(f64::total_cmp);
+        let p75_idx = (active.len().saturating_sub(1) * 3) / 4;
+        let baseline_rms = active.get(p75_idx).copied().unwrap_or(0.05).max(1e-4);
+        let silence_floor = (baseline_rms * 0.14).max(1e-4);
+        Ok(Some(Self { bins, baseline_rms, silence_floor, origin_ms }))
     }
 
     fn bin_slice(&self, start_ms: u64, end_ms: u64) -> &[f64] {
@@ -717,6 +788,11 @@ pub struct ScoreContext {
 
 /// Score sorted subtitle cues paired with optional mono PCM audio peaks into top ranked [`ViralClip`]s.
 pub fn score_viral_clips(cues: &[InputCue], mono_pcm: &[f32], sample_rate: u32, ctx: ScoreContext) -> ViralClipAnalysis {
+    let audio = AudioEnergyProfile::from_mono(mono_pcm, sample_rate, ctx.audio_origin_ms);
+    score_viral_clips_with_profile(cues, audio.as_ref(), ctx)
+}
+
+fn score_viral_clips_with_profile(cues: &[InputCue], audio: Option<&AudioEnergyProfile>, ctx: ScoreContext) -> ViralClipAnalysis {
     let valid_cues: Vec<InputCue> = cues.iter().filter(|c| !c.text.trim().is_empty() && c.end > c.start && c.end_ms > c.start_ms).cloned().collect();
     if valid_cues.is_empty() {
         return ViralClipAnalysis { clips: Vec::new(), total_cues: 0, analyzed_duration_ms: 0 };
@@ -725,22 +801,21 @@ pub fn score_viral_clips(cues: &[InputCue], mono_pcm: &[f32], sample_rate: u32, 
     let first_ms = valid_cues.first().map_or(0, |c| c.start_ms);
     let last_ms = valid_cues.last().map_or(0, |c| c.end_ms);
     let span_ms = last_ms.saturating_sub(first_ms);
-    let audio = AudioEnergyProfile::from_mono(mono_pcm, sample_rate, ctx.audio_origin_ms);
     let info = annotate_cues(&valid_cues);
     let (min_ms, max_ms, ideal_ms) = ctx.preset.bounds_ms();
 
     let mut candidates = if span_ms >= min_ms {
-        let strict = gather_candidates(&valid_cues, &info, min_ms, max_ms, ideal_ms, audio.as_ref());
-        if strict.is_empty() { gather_candidates(&valid_cues, &info, (min_ms * 65) / 100, (max_ms * 125) / 100, ideal_ms, audio.as_ref()) } else { strict }
+        let strict = gather_candidates(&valid_cues, &info, min_ms, max_ms, ideal_ms, audio);
+        if strict.is_empty() { gather_candidates(&valid_cues, &info, (min_ms * 65) / 100, (max_ms * 125) / 100, ideal_ms, audio) } else { strict }
     } else if span_ms >= 3_000 {
         let eff_min = ((span_ms * 45) / 100).max(3_000).min(span_ms);
-        gather_candidates(&valid_cues, &info, eff_min, max_ms.max(span_ms), ideal_ms.min(span_ms), audio.as_ref())
+        gather_candidates(&valid_cues, &info, eff_min, max_ms.max(span_ms), ideal_ms.min(span_ms), audio)
     } else {
-        vec![score_window(&valid_cues, &info, 0, valid_cues.len() - 1, ideal_ms, audio.as_ref())]
+        vec![score_window(&valid_cues, &info, 0, valid_cues.len() - 1, ideal_ms, audio)]
     };
 
     if candidates.is_empty() {
-        candidates.push(score_window(&valid_cues, &info, 0, valid_cues.len() - 1, ideal_ms, audio.as_ref()));
+        candidates.push(score_window(&valid_cues, &info, 0, valid_cues.len() - 1, ideal_ms, audio));
     }
 
     candidates.sort_by(|a, b| {
@@ -907,7 +982,7 @@ fn find_viral_clips_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     });
 
     let project = s.project.clone();
-    let provider = s.media.provider(project.clone(), s.services.clone());
+    let provider = s.media.provider(project.clone(), s.services.clone()).own_sources();
     let wait = bool_p(p, "wait").unwrap_or(false);
     let will_transcribe = whisper_cfg.is_some();
 
@@ -981,16 +1056,13 @@ struct ViralJobWorkerInput {
 }
 
 fn run_viral_job(inp: ViralJobWorkerInput) -> std::result::Result<ViralClipAnalysis, String> {
-    let mut mono = Vec::new();
-    let mut sr = VIRAL_SAMPLE_RATE;
+    let mut energy_profile: Option<AudioEnergyProfile> = None;
     let mut origin_ms = 0_u64;
 
     if let Some(plan) = inp.audio_plan.as_ref() {
-        let cap = if inp.whisper_cfg.is_some() { 25.0 } else { 65.0 };
-        let (pcm, rate) = extract_audio_mono(plan, &inp.project, &inp.provider, &inp.prog, cap)?;
-        sr = rate;
+        let cap = if inp.whisper_cfg.is_some() { 20.0 } else { 65.0 };
         origin_ms = tick_to_ms(plan.range_start);
-        mono = pcm;
+        energy_profile = AudioEnergyProfile::from_plan_streaming(plan, &inp.project, &inp.provider, &inp.prog, origin_ms, cap)?;
     }
 
     if inp.prog.cancel.load(Ordering::Relaxed) {
@@ -1001,9 +1073,8 @@ fn run_viral_job(inp: ViralJobWorkerInput) -> std::result::Result<ViralClipAnaly
         let Some(plan) = inp.audio_plan.as_ref() else {
             return Err("no enabled audio clips found on unlocked tracks".into());
         };
-        let wav = filmcraft_media::wav::write_wav16(&mono, 1, sr);
         let run_cfg = WhisperRunConfig { model_path: &cfg.model_path, language: &cfg.language, mode: cfg.mode, compute: cfg.compute };
-        let segs = subtitles::run_whisper_cli(&cfg.cli_path, &run_cfg, &wav, inp.id, &inp.prog)?;
+        let segs = subtitles::transcribe_plan_chunked(&cfg.cli_path, &run_cfg, plan, &inp.project, &inp.provider, inp.id, &inp.prog)?;
         let built = build_subtitle_cues(&segs, cfg.mode, plan.range_start, plan.seq_rate);
         let input_cues = input_cues_from_subtitles(&built);
         let sig = cue_signature(&input_cues);
@@ -1019,8 +1090,11 @@ fn run_viral_job(inp: ViralJobWorkerInput) -> std::result::Result<ViralClipAnaly
 
     *lock(&inp.prog.status) = "Scoring viral highlights…".into();
     inp.prog.done.store(85, Ordering::Relaxed);
-    let analyzed =
-        score_viral_clips(&cues, &mono, sr, ScoreContext { preset: inp.preset, audio_origin_ms: origin_ms, rate: inp.seq_rate, drop_frame: inp.drop_frame });
+    let analyzed = score_viral_clips_with_profile(
+        &cues,
+        energy_profile.as_ref(),
+        ScoreContext { preset: inp.preset, audio_origin_ms: origin_ms, rate: inp.seq_rate, drop_frame: inp.drop_frame },
+    );
     inp.prog.done.store(100, Ordering::Relaxed);
     Ok(analyzed)
 }

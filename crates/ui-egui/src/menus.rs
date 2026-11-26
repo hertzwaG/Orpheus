@@ -798,37 +798,14 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             crate::panels::color_dialogs::open_sequence(app);
             return Ok(json!({"dialog": "sequenceColor"}));
         }
-        "ai.removePauses" => {
-            if let Some(obj) = params.as_object_mut() {
-                obj.entry("thresholdDb".to_string()).or_insert_with(|| json!(app.ui.ai_tools.threshold_db));
-                obj.entry("minPauseMs".to_string()).or_insert_with(|| json!(app.ui.ai_tools.min_pause_ms));
-                obj.entry("paddingMs".to_string()).or_insert_with(|| json!(app.ui.ai_tools.padding_ms));
-            }
-            let r = app.session.execute(id, params).map_err(|e| e.to_string());
-            match &r {
-                Ok(v) => {
-                    let removed = v["removed"].as_u64().unwrap_or(0);
-                    let secs = v["seconds"].as_f64().unwrap_or(0.0);
-                    if removed > 0 {
-                        app.ui.status = tlf!("Removed {n} pause(s) ({sec}s)", n = removed, sec = format!("{secs:.1}"));
-                    } else {
-                        app.ui.status = tl!("No silent pauses detected").into();
-                    }
-                    app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), app.ui.status.clone(), false);
-                }
-                Err(e) => {
-                    app.ui.status = e.clone();
-                    app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), e.clone(), true);
-                }
-            }
-            return r;
-        }
-        "ai.findViralClips"
+        "ai.removePauses"
+        | "ai.findViralClips"
         | "ai.applySmartTriggers"
         | "ai.enhanceAudio"
         | "ai.autoReframe"
         | "ai.removeBackground"
         | "ai.allInOne"
+        | "ai.vodChapters"
         | "ai.generateSubtitles"
             if params.get("wait").and_then(Value::as_bool) != Some(true) && app.ui.ai_tools.has_active_mutation_job() =>
         {
@@ -836,6 +813,40 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             let n = app.ui.ai_tools.job_queue.pending.len();
             app.ui.status = tlf!("Queued AI task ({n} in queue)…", n = n);
             return Ok(json!({ "queued": true, "queueLen": n }));
+        }
+        "ai.removePauses" => {
+            let long_seq = app.session.active_sequence().is_some_and(|q| q.duration().seconds() > 30.0);
+            if let Some(obj) = params.as_object_mut() {
+                obj.entry("thresholdDb".to_string()).or_insert_with(|| json!(app.ui.ai_tools.threshold_db));
+                obj.entry("minPauseMs".to_string()).or_insert_with(|| json!(app.ui.ai_tools.min_pause_ms));
+                obj.entry("paddingMs".to_string()).or_insert_with(|| json!(app.ui.ai_tools.padding_ms));
+                if long_seq && obj.get("wait").and_then(Value::as_bool) != Some(true) {
+                    obj.entry("async".to_string()).or_insert_with(|| json!(true));
+                }
+            }
+            let r = app.session.execute(id, params).map_err(|e| e.to_string());
+            match &r {
+                Ok(v) => {
+                    if let Some(job_id) = v["job"].as_u64() {
+                        app.ui.ai_tools.silence_job = Some(job_id);
+                        app.ui.status = tl!("Scanning audio for silent pauses…").into();
+                    } else {
+                        let removed = v["removed"].as_u64().unwrap_or(0);
+                        let secs = v["seconds"].as_f64().unwrap_or(0.0);
+                        if removed > 0 {
+                            app.ui.status = tlf!("Removed {n} pause(s) ({sec}s)", n = removed, sec = format!("{secs:.1}"));
+                        } else {
+                            app.ui.status = tl!("No silent pauses detected").into();
+                        }
+                        app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), app.ui.status.clone(), false);
+                    }
+                }
+                Err(e) => {
+                    app.ui.status = e.clone();
+                    app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), e.clone(), true);
+                }
+            }
+            return r;
         }
         "ai.findViralClips" | "ai.jumpToViralClip" | "ai.extractViralClip" => return invoke_viral_clips(app, ctx, id, params),
         "ai.applySmartTriggers" => return invoke_smart_triggers(app, params),

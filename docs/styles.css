@@ -40,10 +40,10 @@
   --status-dev-bg: rgba(203, 213, 225, 0.1);
   --status-dev-border: rgba(203, 213, 225, 0.24);
 
-  /* Typography */
-  --font-brand: 'Syne', 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
-  --font-display: 'Noto Serif', Georgia, 'Times New Roman', serif;
-  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Typography (2 Google Fonts: Plus Jakarta Sans + JetBrains Mono) */
+  --font-brand: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
 
   /* Layout & Spacing */
@@ -499,12 +499,12 @@ div[id] {
 
 .hero__title {
   font-family: var(--font-display);
-  font-size: clamp(2.35rem, 4.4vw, 3.55rem);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
+  font-size: clamp(2.35rem, 4.4vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   color: var(--ink-primary);
-  max-width: 24ch;
+  max-width: 22ch;
   margin-bottom: 1.15rem;
 }
 
@@ -2021,4 +2021,84 @@ div[id] {
   .apollo-float {
     display: none;
   }
+}
+
+/* ==========================================================================
+   Geometric Sans Heading Weight Polish + SHA-256 Verification Box
+   ========================================================================== */
+.section-title,
+.mode-copy__heading,
+.software-card__title,
+.feature-card__title,
+.step-card__title,
+.req-card__title,
+.studio-dialog__title {
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+
+.spec-table td {
+  word-break: break-all;
+}
+
+.checksum-box {
+  padding: 0.75rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.checksum-box__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.checksum-box__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.checksum-box__link {
+  color: var(--accent-ice);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.checksum-box__link:hover {
+  text-decoration: underline;
+}
+
+.checksum-copy-btn {
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--ink-bright-body);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.checksum-copy-btn:hover {
+  border-color: var(--accent-ice);
+  color: #FFFFFF;
+}
+
+.checksum-box__hash {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-bright-body);
+  word-break: break-all;
+  line-height: 1.4;
 }

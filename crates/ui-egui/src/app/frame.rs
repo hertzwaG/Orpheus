@@ -61,6 +61,9 @@ impl FilmcraftApp {
             || self.ui.ai_tools.ai_models_download_job.is_some()
             || self.ui.ai_tools.all_in_one_job.is_some()
             || self.ui.ai_tools.vod_chapters_job.is_some()
+            || self.ui.ai_tools.silence_job.is_some()
+            || !self.session.all_in_one_jobs.is_empty()
+            || !self.session.silence_jobs.is_empty()
             || self.updates_rt.is_busy()
         {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));

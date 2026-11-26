@@ -100,21 +100,117 @@ fn audio_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, rate: i64) -> Vec
     contiguous_starts(packets, (frame / 2).max(stamp_tolerance(t, rate)))
 }
 
+/// Maximum Opus packets whose individual TOC bytes are read at open time.
+/// Above this threshold (for example, a 12-hour OBS MKV with 2.16M 20 ms Opus packets), we probe
+/// a bounded stratified sample of 2-byte TOC headers instead of issuing millions of disk reads.
+const OPUS_EXACT_TOC_LIMIT: usize = 4_096;
+
+/// Read only the 1–2 Opus TOC bytes needed by [`crate::audio::opus_packet_samples`] without
+/// allocating or reading the entire packet payload.
+fn probe_opus_packet_samples(file: &MkvFile, bytes: &crate::Src, ti: usize, i: usize) -> Option<i64> {
+    let t = file.tracks.get(ti)?;
+    let s = t.samples.get(i)?;
+    let prefix = t.frame_prefix(u64::from(s.size));
+    let mut hdr = [0u8; 2];
+    let mut len = 0usize;
+    for &b in prefix.iter().take(2) {
+        hdr[len] = b;
+        len += 1;
+    }
+    let need = (2 - len).min(s.size as usize);
+    if need > 0 {
+        bytes.0.read_at(s.offset, &mut hdr[len..len + need]).ok()?;
+        len += need;
+    }
+    crate::audio::opus_packet_samples(&hdr[..len]).map(|k| k as i64)
+}
+
+/// Convert a Matroska track duration value in track timebase ticks to audio sample frames at `rate`.
+fn duration_ticks_to_samples(t: &filmcraft_matroska::Track, dur: u64, rate: i64) -> Option<i64> {
+    if dur == 0 || rate <= 0 {
+        return None;
+    }
+    let (n, d) = tb(t);
+    let num = (dur as i128).checked_mul(n as i128)?.checked_mul(rate as i128)?;
+    let denom = d as i128;
+    let rounded = num.checked_add(denom / 2)? / denom;
+    i64::try_from(rounded).ok().filter(|&k| k > 0 && k <= 5_760)
+}
+
 /// Sample-exact Opus packet start positions (48 kHz frames, pre-skip removed).
 ///
 /// Starts are accumulated from each packet's TOC duration, resynchronising to the timestamp only
 /// across real gaps (more than two ticks off). Pre-skip is the exact `CodecDelay` (or the header's
 /// pre-skip when it is absent).
+///
+/// For tracks longer than [`OPUS_EXACT_TOC_LIMIT`] packets (e.g. multi-hour OBS MKVs with millions
+/// of 20 ms packets), a bounded stratified TOC probe detects uniform packet durations (the common
+/// case) or falls back to container block durations so opening a 12-hour MKV takes milliseconds
+/// instead of millions of disk seeks.
 fn opus_starts(file: &MkvFile, bytes: &crate::Src, ti: usize, head: &craft_audio::opus::OpusHead, rate: i64) -> Vec<i64> {
     let Some(t) = file.tracks.get(ti) else { return Vec::new() };
     let skip = if t.codec_delay_ns > 0 { codec_delay_samples(t, rate) } else { head.pre_skip as i64 };
     let at = stamp_to_samples(t, rate, skip);
-    let packets = t.samples.iter().enumerate().map(|(i, s)| crate::audio::PacketTime {
+    let tol = stamp_tolerance(t, rate);
+    let n = t.samples.len();
+
+    if n <= OPUS_EXACT_TOC_LIMIT {
+        let packets = t.samples.iter().enumerate().map(|(i, s)| crate::audio::PacketTime {
+            stamp: at(s.pts),
+            stamped: own_stamp(s),
+            samples: probe_opus_packet_samples(file, bytes, ti, i),
+        });
+        return crate::audio::contiguous_starts(packets, tol);
+    }
+
+    // Stratified 2-byte TOC probe: first 32 packets + 32 evenly spaced packets across the track.
+    let mut probe_indices: Vec<usize> = (0..32.min(n)).collect();
+    for k in 1..=32usize {
+        let idx = ((n.saturating_sub(2)) * k) / 32;
+        if idx < n.saturating_sub(1) {
+            probe_indices.push(idx);
+        }
+    }
+    let mut uniform: Option<i64> = None;
+    let mut is_uniform = true;
+    for idx in probe_indices {
+        let Some(k) = probe_opus_packet_samples(file, bytes, ti, idx) else {
+            is_uniform = false;
+            break;
+        };
+        match uniform {
+            None => uniform = Some(k),
+            Some(u) if u == k => {}
+            Some(_) => {
+                is_uniform = false;
+                break;
+            }
+        }
+    }
+
+    let default_samples = t
+        .default_duration_ns
+        .filter(|&ns| ns > 0)
+        .and_then(|ns| {
+            let num = (ns as i128).checked_mul(rate.max(0) as i128)?;
+            i64::try_from(num.checked_add(500_000_000)? / 1_000_000_000).ok()
+        })
+        .filter(|&k| k > 0 && k <= 5_760);
+
+    if is_uniform
+        && let Some(fixed) = uniform
+        && default_samples.is_none_or(|d| d == fixed)
+    {
+        let packets = t.samples.iter().map(|s| crate::audio::PacketTime { stamp: at(s.pts), stamped: own_stamp(s), samples: Some(fixed) });
+        return crate::audio::contiguous_starts(packets, tol);
+    }
+
+    let packets = t.samples.iter().map(|s| crate::audio::PacketTime {
         stamp: at(s.pts),
         stamped: own_stamp(s),
-        samples: file.read_sample(bytes, ti, i).ok().and_then(|p| crate::audio::opus_packet_samples(&p)).map(|k| k as i64),
+        samples: duration_ticks_to_samples(t, s.duration, rate).or(default_samples),
     });
-    crate::audio::contiguous_starts(packets, stamp_tolerance(t, rate))
+    crate::audio::contiguous_starts(packets, tol)
 }
 
 /// A block timestamp (with the demuxer's rounded `CodecDelay` taken off) as a position in sample
@@ -814,5 +910,98 @@ mod origin_tests {
         let sound = src.audio(0, 48_000 * 2 / 5, 48_000).unwrap();
         assert!(sound.channels[0][9_590].abs() < 0.001, "silent before the delay");
         assert!((sound.channels[0][9_610] - 0.5).abs() < 0.001, "sound 0.2 s after the first picture");
+    }
+
+    #[test]
+    fn long_opus_mkv_opens_with_bounded_toc_reads_not_millions() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct CountingReader {
+            data: Arc<[u8]>,
+            reads: Arc<AtomicUsize>,
+        }
+        impl filmcraft_media::ByteReader for CountingReader {
+            fn len(&self) -> u64 {
+                self.data.len() as u64
+            }
+            fn read_at(&self, offset: u64, buf: &mut [u8]) -> std::io::Result<()> {
+                self.reads.fetch_add(1, Ordering::Relaxed);
+                let start = usize::try_from(offset).map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "offset"))?;
+                let end = start.checked_add(buf.len()).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "eof"))?;
+                let slice = self.data.get(start..end).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "eof"))?;
+                buf.copy_from_slice(slice);
+                Ok(())
+            }
+        }
+
+        // Valid OpusHead: 48 kHz stereo, pre_skip = 312 samples, mapping_family = 0.
+        let mut opus_head = Vec::from(&b"OpusHead"[..]);
+        opus_head.push(1); // version
+        opus_head.push(2); // channels
+        opus_head.extend_from_slice(&312u16.to_le_bytes()); // pre_skip
+        opus_head.extend_from_slice(&48_000u32.to_le_bytes()); // input rate
+        opus_head.extend_from_slice(&0i16.to_le_bytes()); // output gain
+        opus_head.push(0); // mapping family
+
+        // Minimal valid 20 ms Opus packet (TOC 0xF8 = CELT FB 20 ms, 1 frame, stereo -> 960 samples).
+        let pkt = [0xF8u8, 0xFF, 0xFE, 0x00];
+
+        // 1. Real MKV container with 5,000 Opus packets (> OPUS_EXACT_TOC_LIMIT = 4,096).
+        let mut a = TrackSpec::new(TrackKind::Audio, "A_OPUS");
+        a.audio = Some((48_000.0, 2, None));
+        a.codec_private = opus_head.clone();
+        a.codec_delay_ns = 6_500_000; // 312 samples @ 48 kHz
+        a.default_duration_ns = Some(20_000_000);
+        let mut w = MkvWriter::new(std::io::Cursor::new(Vec::new()), vec![a], MuxOptions::default()).unwrap();
+        let n_pkts = 5_000usize;
+        for i in 0..n_pkts {
+            let pts_ns = (i as i64) * 20_000_000;
+            w.write_frame(0, pts_ns, true, &pkt, Some(20_000_000)).unwrap();
+        }
+        let mkv_bytes: Arc<[u8]> = w.finish().unwrap().into_inner().into();
+        let open_reads = Arc::new(AtomicUsize::new(0));
+        let reader: filmcraft_media::SharedReader = Arc::new(CountingReader { data: mkv_bytes.clone(), reads: open_reads.clone() });
+        let src = super::MkvSource::open_reader("long_opus.mkv", reader).unwrap();
+        assert_eq!(src.audios.len(), 1);
+        assert_eq!(src.audios[0].starts.len(), n_pkts);
+        assert_eq!(src.audios[0].starts[0], -312);
+        assert_eq!(src.audios[0].starts[n_pkts - 1], (n_pkts as i64 - 1) * 960 - 312);
+
+        // 2. Direct 12-hour scale test (2,160,000 packets x 20 ms = 12 hours): must issue <= 64
+        //    2-byte TOC reads instead of 2,160,000 full disk reads, and resync across a real gap.
+        let mut file = filmcraft_matroska::open(crate::Src(Arc::new(filmcraft_media::reader::MemReader(mkv_bytes.clone())))).unwrap();
+        let origin = super::media_origin(&file, None, &[0]);
+        super::rebase(&mut file, origin);
+        let sample_template = file.tracks[0].samples[0];
+        let pts0 = sample_template.pts;
+        let total_12h = 2_160_000usize;
+        let mut samples = Vec::with_capacity(total_12h);
+        for i in 0..total_12h {
+            let mut s = sample_template;
+            // Inject a real 100 ms gap halfway through to confirm gap resynchronisation stays intact.
+            let extra_ms = if i >= total_12h / 2 { 100i64 } else { 0i64 };
+            s.pts = pts0 + (i as i64) * 20 + extra_ms;
+            s.duration = 20;
+            samples.push(s);
+        }
+        file.tracks[0].samples = samples;
+
+        let toc_reads = Arc::new(AtomicUsize::new(0));
+        let counting_src = crate::Src(Arc::new(CountingReader { data: mkv_bytes, reads: toc_reads.clone() }));
+        let head = craft_audio::opus::OpusHead::parse(&opus_head).unwrap();
+        let t0 = std::time::Instant::now();
+        let starts = super::opus_starts(&file, &counting_src, 0, &head, 48_000);
+        let elapsed_ms = t0.elapsed().as_secs_f64() * 1000.0;
+        let reads_done = toc_reads.load(Ordering::Relaxed);
+
+        assert_eq!(starts.len(), total_12h);
+        assert!(reads_done <= 64, "12-hour Opus open must probe <= 64 TOC headers, did {reads_done}");
+        assert_eq!(starts[0], -312);
+        assert_eq!(starts[total_12h / 2 - 1], ((total_12h / 2 - 1) as i64) * 960 - 312);
+        // After the 100 ms (+4800 sample) gap, starts resynchronise cleanly.
+        assert_eq!(starts[total_12h / 2], ((total_12h / 2) as i64) * 960 + 4_800 - 312);
+        assert_eq!(starts[total_12h - 1], ((total_12h - 1) as i64) * 960 + 4_800 - 312);
+        println!("[MKV_12H_OPUS_METRICS] packets={total_12h} toc_reads={reads_done} elapsed_ms={elapsed_ms:.2}");
     }
 }

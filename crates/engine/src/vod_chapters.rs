@@ -388,7 +388,9 @@ fn detect_sustained_chapters_with_hints(
     let mut prev_t = first.time_sec;
 
     for sig in signatures.iter().skip(1) {
-        let crossed_clip = clip_boundaries_sec.iter().find(|&&b| b > prev_t && b <= sig.time_sec && b - current_start >= min_dur).copied();
+        let min_b = current_start + min_dur;
+        let idx = if prev_t >= min_b { clip_boundaries_sec.partition_point(|&b| b <= prev_t) } else { clip_boundaries_sec.partition_point(|&b| b < min_b) };
+        let crossed_clip = clip_boundaries_sec.get(idx).copied().filter(|&b| b > prev_t && b <= sig.time_sec);
         prev_t = sig.time_sec;
         let dist = signature_l1_distance(&anchor_sig, sig);
         let layout_changed = sig.layout != current_layout;
@@ -808,9 +810,17 @@ fn collect_transcript_snippets(seq: &Sequence) -> Vec<(f64, f64, String)> {
     out
 }
 
-fn snippet_for_window(transcript: &[(f64, f64, String)], start_sec: f64, window_sec: f64) -> String {
+fn snippet_for_window(transcript: &[(f64, f64, String)], max_seg_dur: f64, start_sec: f64, window_sec: f64) -> String {
+    if transcript.is_empty() {
+        return String::new();
+    }
     let end_sec = start_sec + window_sec;
-    transcript.iter().filter(|(s, e, _)| *e >= start_sec && *s <= end_sec).map(|(_, _, t)| t.as_str()).collect::<Vec<_>>().join(" ")
+    // `transcript` is sorted by segment start time; bound both ends with binary search so
+    // 12-hour timelines with 15,000+ captions stay O(log N + K) per sample.
+    let hi = transcript.partition_point(|(s, _, _)| *s <= end_sec);
+    let lookback = start_sec - max_seg_dur.max(0.0);
+    let lo = transcript[..hi].partition_point(|(s, _, _)| *s < lookback);
+    transcript[lo..hi].iter().filter(|(s, e, _)| *e >= start_sec && *s <= end_sec).map(|(_, _, t)| t.as_str()).collect::<Vec<_>>().join(" ")
 }
 
 struct SampleSourceClip {
@@ -823,8 +833,22 @@ struct SampleSourceClip {
     src: Option<SharedSource>,
 }
 
+fn find_active_clip(tracks: &[Vec<SampleSourceClip>], t: f64) -> Option<&SampleSourceClip> {
+    for tr in tracks {
+        let pos = tr.partition_point(|c| c.timeline_start <= t);
+        if let Some(c) = pos.checked_sub(1).and_then(|i| tr.get(i))
+            && c.timeline_end > c.timeline_start
+            && t >= c.timeline_start
+            && t < c.timeline_end
+        {
+            return Some(c);
+        }
+    }
+    None
+}
+
 fn analyze_vod_chapters(
-    clips: Vec<SampleSourceClip>,
+    tracks: Vec<Vec<SampleSourceClip>>,
     total_duration_sec: f64,
     transcript: Vec<(f64, f64, String)>,
     sample_interval_sec: f64,
@@ -833,10 +857,11 @@ fn analyze_vod_chapters(
     prog: Option<&Progress>,
 ) -> Result<(Vec<ChapterMarker>, bool)> {
     check_cancelled(prog)?;
-    if !total_duration_sec.is_finite() || total_duration_sec <= 0.1 || clips.is_empty() {
+    if !total_duration_sec.is_finite() || total_duration_sec <= 0.1 || tracks.iter().all(Vec::is_empty) {
         return Err(bad("ai.vodChapters", "Add a video clip to the timeline before chapterizing"));
     }
 
+    let max_seg_dur = transcript.iter().map(|(s, e, _)| (e - s).max(0.0)).fold(0.0_f64, f64::max);
     let safe_interval = if sample_interval_sec.is_finite() { sample_interval_sec.max(2.0) } else { DEFAULT_SAMPLE_INTERVAL_SEC };
     let safe_min_chapter = if min_chapter_sec.is_finite() { min_chapter_sec.max(10.0) } else { DEFAULT_MIN_CHAPTER_SEC };
     let step = (total_duration_sec / MAX_SAMPLES as f64).max(safe_interval);
@@ -847,7 +872,7 @@ fn analyze_vod_chapters(
     let mut idx = 0usize;
     while t < total_duration_sec && idx < MAX_SAMPLES {
         check_cancelled(prog)?;
-        let active_clip = clips.iter().find(|c| c.timeline_end > c.timeline_start && t >= c.timeline_start && t < c.timeline_end);
+        let active_clip = find_active_clip(&tracks, t);
         let sig = if let Some(c) = active_clip
             && let Some(ref src) = c.src
         {
@@ -876,7 +901,7 @@ fn analyze_vod_chapters(
         // Refine borderline layout with speech-density cues when captions/transcript exist:
         // continuous dense speech hints TalkingHead, sparse speech with active visual edges hints GamingHud.
         if !transcript.is_empty() {
-            let win_words = snippet_for_window(&transcript, t, step.max(10.0)).split_whitespace().count();
+            let win_words = snippet_for_window(&transcript, max_seg_dur, t, step.max(10.0)).split_whitespace().count();
             if win_words >= 18 && sig.edge_hud_energy < 0.08 && sig.center_skin_ratio >= 0.08 {
                 sig.layout = VisualLayoutKind::TalkingHead;
             } else if win_words <= 4 && (sig.edge_hud_energy >= 0.05 || sig.center_action_energy >= 0.06) {
@@ -893,7 +918,8 @@ fn analyze_vod_chapters(
         }
     }
 
-    let mut clip_boundaries_sec: Vec<f64> = clips.iter().map(|c| c.timeline_start).filter(|&s| s > 1.0 && s < total_duration_sec - 1.0).collect();
+    let mut clip_boundaries_sec: Vec<f64> =
+        tracks.iter().flat_map(|tr| tr.iter()).map(|c| c.timeline_start).filter(|&s| s > 1.0 && s < total_duration_sec - 1.0).collect();
     clip_boundaries_sec.sort_by(f64::total_cmp);
     clip_boundaries_sec.dedup_by(|a, b| (*a - *b).abs() < 1.0);
 
@@ -916,7 +942,7 @@ fn analyze_vod_chapters(
     let mut drafts: Vec<(f64, f64, VisualLayoutKind, String, String)> = raw_chapters
         .into_iter()
         .map(|(s, e, layout)| {
-            let snip = snippet_for_window(&transcript, s, 45.0);
+            let snip = snippet_for_window(&transcript, max_seg_dur, s, 45.0);
             let title = classify_chapter_title(layout, &snip);
             (s, e, layout, title, snip)
         })
@@ -1031,21 +1057,23 @@ fn vod_chapters_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     let ollama_url = str_p(p, "ollamaUrl").unwrap_or("").to_string();
     let wait = bool_p(p, "wait").unwrap_or(false);
 
-    let mut clips = Vec::new();
+    let provider = s.media.provider(s.project.clone(), s.services.clone()).own_sources();
+    let mut track_clips: Vec<Vec<SampleSourceClip>> = Vec::new();
     for tr in seq.video_tracks.iter().rev() {
         if tr.kind != TrackKind::Video || tr.locked {
             continue;
         }
+        let mut tr_items = Vec::new();
         for it in &tr.items {
             if !it.enabled || it.duration <= Tick::ZERO {
                 continue;
             }
-            let src = s.source(it.item);
+            let src = filmcraft_render::SourceProvider::source(&provider, it.item);
             let (src_w, src_h) = src
                 .as_ref()
                 .and_then(|s| s.info().video.as_ref().map(|v| (v.width.max(1), v.height.max(1))))
                 .unwrap_or((seq.settings.width.max(1), seq.settings.height.max(1)));
-            clips.push(SampleSourceClip {
+            tr_items.push(SampleSourceClip {
                 timeline_start: it.start.seconds(),
                 timeline_end: it.end().seconds(),
                 source_in: it.source_in.seconds(),
@@ -1055,11 +1083,14 @@ fn vod_chapters_cmd(s: &mut Session, p: &Value) -> Result<Value> {
                 src,
             });
         }
+        if !tr_items.is_empty() {
+            tr_items.sort_by(|a, b| a.timeline_start.total_cmp(&b.timeline_start));
+            track_clips.push(tr_items);
+        }
     }
-    if clips.is_empty() {
+    if track_clips.is_empty() {
         return Err(bad("ai.vodChapters", "No unlocked video clips found on the timeline"));
     }
-    clips.sort_by(|a, b| a.timeline_start.total_cmp(&b.timeline_start));
     let mut transcript = collect_transcript_snippets(seq);
     // Transcribing a long VOD blocks, so only a synchronous (`wait`) call does it; the UI path
     // uses the captions already on the timeline and never freezes the session thread.
@@ -1076,7 +1107,7 @@ fn vod_chapters_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     }
 
     if wait {
-        let (chapters, used_ollama) = analyze_vod_chapters(clips, total_dur, transcript, sample_interval_sec, min_chapter_sec, ollama_url, None)?;
+        let (chapters, used_ollama) = analyze_vod_chapters(track_clips, total_dur, transcript, sample_interval_sec, min_chapter_sec, ollama_url, None)?;
         let rep = apply_vod_chapters(s, seq_id, split_clips, chapters, used_ollama)?;
         return Ok(serde_json::to_value(rep).unwrap_or(Value::Null));
     }
@@ -1101,7 +1132,7 @@ fn vod_chapters_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     let result_bg = result.clone();
     let run = crate::export_tools::guard_job(prog_bg.clone(), result_bg.clone(), move || {
         let t0 = web_time::Instant::now();
-        let rep = match analyze_vod_chapters(clips, total_dur, transcript, sample_interval_sec, min_chapter_sec, ollama_url, Some(&prog_bg)) {
+        let rep = match analyze_vod_chapters(track_clips, total_dur, transcript, sample_interval_sec, min_chapter_sec, ollama_url, Some(&prog_bg)) {
             Ok((chapters, used_ollama)) => {
                 let n = chapters.len() as u64;
                 *lock(&slot) = Some((chapters, used_ollama));
@@ -1477,7 +1508,7 @@ mod tests {
             // Gap: 150.0..170.0
             SampleSourceClip { timeline_start: 170.0, timeline_end: 240.0, source_in: 0.0, speed: 0.0, src_w: 0, src_h: 0, src: None },
         ];
-        let (detected, used_ollama) = analyze_vod_chapters(clips, 240.0, Vec::new(), 10.0, 45.0, String::new(), None).unwrap();
+        let (detected, used_ollama) = analyze_vod_chapters(vec![clips], 240.0, Vec::new(), 10.0, 45.0, String::new(), None).unwrap();
         assert!(!used_ollama);
         assert!(!detected.is_empty());
 

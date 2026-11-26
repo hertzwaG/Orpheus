@@ -39,8 +39,8 @@ pub const ENHANCE_SAMPLE_RATE: u32 = 48_000;
 pub const TARGET_LOUDNESS_LUFS: f64 = -16.0;
 /// Wet/dry mastering blend (85% processed / 15% phase-aligned dry voice).
 pub const WET_DRY_MIX: f32 = 0.85;
-/// Decode/write safety bound (4 hours at 48 kHz) against corrupt or overflowed clip durations.
-const MAX_ENHANCE_FRAMES: usize = 4 * 3600 * ENHANCE_SAMPLE_RATE as usize;
+/// Decode/write safety bound (16 hours at 48 kHz) supporting 12-hour+ VODs while bounding corrupt durations.
+const MAX_ENHANCE_FRAMES: usize = 16 * 3600 * ENHANCE_SAMPLE_RATE as usize;
 /// Decode chunk size (100 ms at 48 kHz) for smooth progress updates and prompt cancellation.
 const DECODE_CHUNK_FRAMES: usize = 4_800;
 /// Processing block size for latency-compensated DSP effects.
@@ -535,7 +535,7 @@ fn clip_frame_count(dur: Tick) -> std::result::Result<usize, String> {
     }
     let n_usize = usize::try_from(n.max(0)).map_err(|_| "clip duration exceeds addressable frame limit".to_string())?;
     if n_usize > MAX_ENHANCE_FRAMES {
-        return Err("clip exceeds 4-hour AI Audio Enhance limit".into());
+        return Err("clip exceeds 16-hour AI Audio Enhance limit".into());
     }
     Ok(n_usize)
 }
@@ -862,7 +862,7 @@ fn enhance_audio_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     let rendered_slot: Arc<Mutex<Option<Vec<RenderedClip>>>> = Arc::default();
     s.audio_enhance_jobs.push(PendingAudioEnhanceJob { job: id, seq: seq_id, options, epoch: s.document_epoch, dir, rendered: rendered_slot.clone() });
 
-    let provider = s.media.provider(s.project.clone(), s.services.clone());
+    let provider = s.media.provider(s.project.clone(), s.services.clone()).own_sources();
     let wait = bool_p(p, "wait").unwrap_or(false);
 
     let run = crate::export_tools::guard_job(prog.clone(), result.clone(), move || {

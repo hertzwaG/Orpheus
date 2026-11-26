@@ -301,6 +301,13 @@ impl Services for FsServices {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct UndoMark(Option<usize>);
 
+/// Estimated heap memory budget across unique sequence snapshots kept in undo/redo history.
+/// Normal timelines stay far below this budget and retain the full 200-step undo limit, while
+/// 12-hour VOD timelines with 5,000+ cut clips are bounded instead of ballooning to gigabytes.
+pub const MAX_HISTORY_ESTIMATED_BYTES: usize = 256 * 1024 * 1024;
+/// Minimum undo steps retained regardless of sequence size.
+pub const MIN_UNDO_STEPS: usize = 8;
+
 /// Undo history of whole-project snapshots. Each step is its label, the project before (undo) or
 /// after (redo) it, and the id of the command that made it (None for an edit made outside
 /// [`Session::execute`]); the History panel draws that command's icon.
@@ -310,9 +317,30 @@ pub struct History {
     pub redo: Vec<(String, Arc<Project>, Option<String>)>,
     /// Labels of all applied states, oldest first (History panel).
     pub limit: usize,
+    /// Estimated byte cap across unique `Arc<Sequence>` snapshots in `undo` + `redo` (`0` uses
+    /// [`MAX_HISTORY_ESTIMATED_BYTES`]).
+    pub max_bytes: usize,
     /// Key of the last [`Session::edit_merged`] step: a continuous gesture (a fader drag) with the
     /// same key folds into that one undo step.
     pub merge_key: Option<String>,
+}
+
+fn estimate_sequence_bytes(seq: &filmcraft_project::Sequence) -> usize {
+    const BYTES_PER_SEQUENCE_BASE: usize = 4_096;
+    const BYTES_PER_TRACK_ITEM: usize = 4_096;
+    const BYTES_PER_TRANSITION: usize = 512;
+    const BYTES_PER_CAPTION: usize = 512;
+    const BYTES_PER_MARKER: usize = 256;
+
+    let mut total = BYTES_PER_SEQUENCE_BASE;
+    for tr in seq.all_tracks() {
+        total =
+            total.saturating_add(tr.items.len().saturating_mul(BYTES_PER_TRACK_ITEM)).saturating_add(tr.transitions.len().saturating_mul(BYTES_PER_TRANSITION));
+    }
+    for ct in &seq.caption_tracks {
+        total = total.saturating_add(ct.captions.len().saturating_mul(BYTES_PER_CAPTION));
+    }
+    total.saturating_add(seq.markers.len().saturating_mul(BYTES_PER_MARKER))
 }
 
 impl History {
@@ -321,6 +349,34 @@ impl History {
     }
     pub fn can_redo(&self) -> bool {
         !self.redo.is_empty()
+    }
+    /// Estimated memory used by distinct `Arc<Sequence>` snapshots currently held in `undo` + `redo`.
+    pub fn estimated_bytes(&self) -> usize {
+        let mut seen = std::collections::HashSet::<usize>::new();
+        let mut total = 0usize;
+        for (_, proj, _) in self.undo.iter().chain(self.redo.iter()) {
+            for item in proj.items.values() {
+                if let filmcraft_project::ItemKind::Sequence(seq) = &item.kind {
+                    let ptr = Arc::as_ptr(seq) as usize;
+                    if seen.insert(ptr) {
+                        total = total.saturating_add(estimate_sequence_bytes(seq));
+                    }
+                }
+            }
+        }
+        total
+    }
+    /// Enforce both step count (`limit`) and memory budget (`max_bytes`) by evicting oldest undo
+    /// snapshots while always preserving at least `MIN_UNDO_STEPS.min(limit)` steps.
+    pub fn trim(&mut self) {
+        while self.undo.len() > self.limit {
+            self.undo.remove(0);
+        }
+        let budget = if self.max_bytes == 0 { MAX_HISTORY_ESTIMATED_BYTES } else { self.max_bytes };
+        let floor = MIN_UNDO_STEPS.min(self.limit);
+        while self.undo.len() > floor && self.estimated_bytes() > budget {
+            self.undo.remove(0);
+        }
     }
     /// The History panel's Delete Redoable Actions: removes every step that Redo would bring
     /// back. The project and the undo steps stay as they are. Returns how many steps were removed.
@@ -601,6 +657,8 @@ pub struct Session {
     pub all_in_one_jobs: Vec<all_in_one::PendingAllInOneJob>,
     /// Stream VOD Chapterizer background jobs applied on completion.
     pub vod_chapters_jobs: Vec<vod_chapters::PendingVodChapterJob>,
+    /// Auto-Cut Silence background jobs applied on completion.
+    pub silence_jobs: Vec<silence::PendingSilenceJob>,
     /// Most recent Orpheus All-In-One execution report.
     pub all_in_one_report: Option<all_in_one::AllInOneReport>,
     /// Effect presets (built-in + the user's, persisted in the data directory).
@@ -678,7 +736,7 @@ impl Session {
         Self {
             project: Arc::new(Project::new("Untitled")),
             project_instance: Arc::new(()),
-            history: History { limit: 200, ..Default::default() },
+            history: History { limit: 200, max_bytes: MAX_HISTORY_ESTIMATED_BYTES, ..Default::default() },
             revision: 1,
             document_epoch: 0,
             saved_revision: 1,
@@ -729,6 +787,7 @@ impl Session {
             all_in_one_jobs: Vec::new(),
             all_in_one_report: None,
             vod_chapters_jobs: Vec::new(),
+            silence_jobs: Vec::new(),
             presets: Default::default(),
             export_presets: Default::default(),
             export_queue: Default::default(),
@@ -833,8 +892,9 @@ impl Session {
         audio_enhance::poll(self);
         auto_reframe::poll(self);
         bg_removal::poll(self);
-        all_in_one::poll(self);
         vod_chapters::poll(self);
+        silence::poll(self);
+        all_in_one::poll(self);
         export_tools::pump_queue(self, false);
         panels::log_jobs(self);
         let Some(p) = self.persistence.as_mut() else { return };
@@ -1099,10 +1159,8 @@ impl Session {
         self.drop_orphan_transitions(&mut p);
         let old = std::mem::replace(&mut self.project, Arc::new(p));
         self.history.undo.push((label.to_string(), old, self.command_origin.clone()));
-        if self.history.undo.len() > self.history.limit {
-            self.history.undo.remove(0);
-        }
         self.history.redo.clear();
+        self.history.trim();
         self.history.merge_key = None;
         self.state = st;
         self.drop_stale_gap();
@@ -1134,13 +1192,15 @@ impl Session {
     /// Run several undoable edits as one undo step labelled `label`. If `f` fails, every edit it made
     /// is rolled back and the history is as before.
     pub fn edit_group<R>(&mut self, label: &str, f: impl FnOnce(&mut Session) -> Result<R>) -> Result<R> {
-        let (project, state, undo, redo, limit) =
-            (self.project.clone(), self.state.clone(), self.history.undo.len(), self.history.redo.clone(), self.history.limit);
+        let (project, state, undo, redo, limit, max_bytes) =
+            (self.project.clone(), self.state.clone(), self.history.undo.len(), self.history.redo.clone(), self.history.limit, self.history.max_bytes);
         // keep every step the group makes, however many, so the first one can be found afterwards
         self.history.limit = usize::MAX;
+        self.history.max_bytes = usize::MAX;
         // a panic inside the group must not leave the history unlimited: restore, then let it go on
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(self)));
         self.history.limit = limit;
+        self.history.max_bytes = max_bytes;
         let first = self.history.undo.get(undo).map(|e| (e.1.clone(), e.2.clone()));
         let rolled_back = |s: &mut Session| {
             s.history.undo.truncate(undo);
@@ -1154,9 +1214,7 @@ impl Session {
             (Ok(Ok(v)), Some((first, origin))) => {
                 self.history.undo.truncate(undo);
                 self.history.undo.push((label.to_string(), first, origin));
-                if self.history.undo.len() > limit {
-                    self.history.undo.remove(0);
-                }
+                self.history.trim();
                 self.history.merge_key = None;
                 Ok(v)
             }

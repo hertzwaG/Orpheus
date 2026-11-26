@@ -108,18 +108,37 @@ pub(crate) fn track_input_at(
         ClipLive { vol: ovs.get(&(track.id, CLIP_LANE_VOLUME.to_string())).copied(), pan: ovs.get(&(track.id, CLIP_LANE_PAN.to_string())).copied(), depth };
     let range = TimeRange::from_bounds(Tick::from_units(start, sr as i64), Tick::from_units(start + frames as i64, sr as i64));
     let mut tbuf = AudioBuffer::silence(sr, w, frames);
-    for item in track.items.iter().filter(|i| i.enabled && i.range().overlaps(&range)) {
-        mix_item(project, item, item, win, sources, &mut tbuf, &live);
+    if frames == 0 {
+        return tbuf;
+    }
+    // Track items are non-overlapping and sorted by start: binary-search the first item whose end
+    // exceeds range.start and stop once item.start reaches range.end() — O(log N + K) instead of
+    // scanning all 5,000+ clips on every audio pull of a 12-hour timeline.
+    let first_item = track.items.partition_point(|i| i.end() <= range.start);
+    for item in &track.items[first_item..] {
+        if item.start >= range.end() {
+            break;
+        }
+        if item.enabled && item.range().overlaps(&range) {
+            mix_item(project, item, item, win, sources, &mut tbuf, &live);
+        }
     }
     // audio transitions: attenuate the covered region of each side
-    for tr in &track.transitions {
+    let first_tr = track.transitions.partition_point(|tr| tr.end() <= range.start);
+    for tr in &track.transitions[first_tr..] {
+        if tr.start >= range.end() {
+            break;
+        }
         if !tr.range().overlaps(&range) {
             continue;
         }
         // Re-mix: recompute the covered samples with crossfade gains. Both sides play over the
         // whole transition, into their handles as the picture does, so a transition centred on a
         // cut overlaps the two clips instead of only fading each on its own side of the cut.
-        let (from_src, to_src) = (tr.from.and_then(|id| track.item(id)), tr.to.and_then(|id| track.item(id)));
+        let near_lo = first_item.saturating_sub(2);
+        let near_hi = (first_item + 6).min(track.items.len());
+        let find_clip = |id| track.items[near_lo..near_hi].iter().find(|i| i.id == id).or_else(|| track.item(id));
+        let (from_src, to_src) = (tr.from.and_then(find_clip), tr.to.and_then(find_clip));
         let from = from_src.map(|i| with_handles(i, tr.start, tr.end()));
         let to = to_src.map(|i| with_handles(i, tr.start, tr.end()));
         let s0 = tr.start.to_units_floor(sr as i64).max(start);

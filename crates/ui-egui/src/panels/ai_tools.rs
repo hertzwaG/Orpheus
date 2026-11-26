@@ -92,6 +92,24 @@ fn poll_vod_chapters_job(app: &mut FilmcraftApp) {
     }
 }
 
+fn poll_silence_job(app: &mut FilmcraftApp) {
+    let Some(id) = app.ui.ai_tools.silence_job else { return };
+    match check_job_finished(app, id) {
+        None => app.ui.ai_tools.silence_job = None,
+        Some(FinishedOutcome::Running) => {}
+        Some(FinishedOutcome::Ok(n)) => {
+            app.ui.ai_tools.silence_job = None;
+            app.ui.status = if n > 0 { tlf!("Removed {n} silent pause(s)", n = n) } else { tl!("No silent pauses detected").into() };
+            app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), app.ui.status.clone(), false);
+        }
+        Some(FinishedOutcome::Err(e)) => {
+            app.ui.ai_tools.silence_job = None;
+            app.ui.status = tlf!("Auto-Cut Silence failed: {err}", err = e);
+            app.ui.ai_tools.push_toast(tl!("Auto-Cut Silence"), app.ui.status.clone(), true);
+        }
+    }
+}
+
 pub fn poll_jobs(app: &mut FilmcraftApp) {
     if let Some(id) = app.ui.ai_tools.subtitle_engine_download_job {
         match check_job_finished(app, id) {
@@ -295,6 +313,7 @@ pub fn poll_jobs(app: &mut FilmcraftApp) {
         }
     }
     poll_vod_chapters_job(app);
+    poll_silence_job(app);
     if !app.ui.ai_tools.has_active_mutation_job()
         && let Some(next) = app.ui.ai_tools.job_queue.pending.pop_front()
     {
@@ -363,6 +382,8 @@ pub fn show_toast_overlay(app: &mut FilmcraftApp, ctx: &egui::Context) {
                                 tl!("Running Orpheus All-In-One…")
                             } else if app.ui.ai_tools.vod_chapters_job.is_some() {
                                 tl!("Chapterizing stream VOD…")
+                            } else if app.ui.ai_tools.silence_job.is_some() {
+                                tl!("Scanning audio for silent pauses…")
                             } else if app.ui.ai_tools.subtitle_download_job.is_some() {
                                 tl!("Downloading AI model…")
                             } else {
@@ -1859,7 +1880,7 @@ fn draw_auto_cut_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, sta
         ui.spacing_mut().item_spacing.y = 2.0;
         ui.spacing_mut().interact_size.y = 18.0;
 
-        let (pauses, saved_secs) = cached_preview(app, ui.ctx());
+        let preview = cached_preview(app, ui.ctx());
         ui.horizontal(|ui| {
             let (icon_r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
             icons::paint(ui.painter(), icon_r, Icon::Sparkle, Color32::from_rgb(0x6E, 0x9F, 0xFF));
@@ -1898,12 +1919,13 @@ fn draw_auto_cut_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, sta
 
         draw_ai_ready_pill(ui, &mut app.auto, t, app.ui.dark, "ai.silence.status");
 
-        let summary = if pauses > 0 {
-            tlf!("{n} pauses detected ({sec}s saved)", n = pauses, sec = format!("{saved_secs:.1}"))
-        } else {
-            tl!("No silent pauses detected").into()
+        let (summary, summary_col) = match preview {
+            Some((pauses, saved_secs)) if pauses > 0 => {
+                (tlf!("{n} pauses detected ({sec}s saved)", n = pauses, sec = format!("{saved_secs:.1}")), Color32::from_rgb(0x7C, 0xB3, 0xFF))
+            }
+            Some(_) => (tl!("No silent pauses detected").into(), t.text_dim),
+            None => (tl!("Long timeline (>2 min) — click Remove Pauses to scan in background").into(), t.text_dim),
         };
-        let summary_col = if pauses > 0 { Color32::from_rgb(0x7C, 0xB3, 0xFF) } else { t.text_dim };
         ui.add(egui::Label::new(egui::RichText::new(summary).font(Tokens::ui(10.5)).color(summary_col)).wrap());
 
         draw_slider_row(
@@ -1941,6 +1963,11 @@ fn draw_auto_cut_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, sta
         ui.add_space(2.0);
 
         let _ = card_border;
+        if let Some(prog) = active_job_progress(app, app.ui.ai_tools.silence_job) {
+            let shown = nonblocking_progress_status(&prog, tl!("Scanning audio for silent pauses…"));
+            draw_job_bar(ui, &mut app.auto, t, prog.fraction(), &shown, &prog, "ai.silence.cancel");
+            return;
+        }
         let has_seq = app.session.active_sequence().is_some();
         let clicked = draw_primary_icon_button(ui, &mut app.auto, t, "ai.removePauses", tl!("Remove Pauses"), Icon::Sparkle, has_seq, true, None);
         if has_seq && clicked {
@@ -1949,6 +1976,7 @@ fn draw_auto_cut_card(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens, sta
                 "thresholdDb": app.ui.ai_tools.threshold_db,
                 "minPauseMs": app.ui.ai_tools.min_pause_ms,
                 "paddingMs": app.ui.ai_tools.padding_ms,
+                "async": true,
             });
             let _ = crate::menus::invoke(app, &ctx, "ai.removePauses", params);
         }
@@ -2539,9 +2567,17 @@ fn draw_slider_row(
     });
 }
 
-fn cached_preview(app: &FilmcraftApp, ctx: &egui::Context) -> (usize, f64) {
-    if app.session.active_sequence().is_none() {
-        return (0, 0.0);
+/// Maximum timeline duration for synchronous live silence preview in the Studio AI panel.
+/// Longer timelines (such as multi-hour VODs) skip main-thread RMS scanning and scan on a worker
+/// thread when the user triggers Remove Pauses.
+const MAX_SYNC_SILENCE_PREVIEW_SECS: f64 = 120.0;
+
+fn cached_preview(app: &FilmcraftApp, ctx: &egui::Context) -> Option<(usize, f64)> {
+    let Some(seq) = app.session.active_sequence() else {
+        return Some((0, 0.0));
+    };
+    if seq.duration().seconds() > MAX_SYNC_SILENCE_PREVIEW_SECS {
+        return None;
     }
     let key = PreviewKey {
         revision: app.session.revision,
@@ -2555,7 +2591,7 @@ fn cached_preview(app: &FilmcraftApp, ctx: &egui::Context) -> (usize, f64) {
     if let Some((saved_key, cached)) = ctx.data(|d| d.get_temp::<(PreviewKey, (usize, f64))>(cache_id))
         && saved_key == key
     {
-        return cached;
+        return Some(cached);
     }
     let opts =
         SilenceOptions { threshold_db: app.ui.ai_tools.threshold_db, min_pause_ms: app.ui.ai_tools.min_pause_ms, padding_ms: app.ui.ai_tools.padding_ms };
@@ -2563,7 +2599,7 @@ fn cached_preview(app: &FilmcraftApp, ctx: &egui::Context) -> (usize, f64) {
     let total_ticks: i64 = ranges.iter().map(|r| r.duration.0).sum();
     let res = (ranges.len(), total_ticks as f64 / TICKS_PER_SECOND as f64);
     ctx.data_mut(|d| d.insert_temp(cache_id, (key, res)));
-    res
+    Some(res)
 }
 
 pub(crate) fn cached_subtitle_status(ctx: &egui::Context, downloading: bool) -> SubtitleStatus {

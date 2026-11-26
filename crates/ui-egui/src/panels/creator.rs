@@ -108,7 +108,31 @@ fn draw_prompt_bar(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, t: &To
     icons::paint(child.painter(), icon_r, Icon::Sparkle, ROYAL_BLUE);
     child.label(egui::RichText::new(tl!("Orpheus All-In-One")).font(Tokens::semibold(12.5)).color(t.text));
 
-    let running = active_job_progress(app, app.ui.ai_tools.all_in_one_job).is_some();
+    if let Some(prog) = active_job_progress(app, app.ui.ai_tools.all_in_one_job) {
+        let pct = (prog.fraction().clamp(0.0, 1.0) * 100.0).round() as u32;
+        let stage = match prog.status.try_lock() {
+            Ok(s) if !s.is_empty() => s.clone(),
+            _ => tl!("Running Orpheus All-In-One…").to_string(),
+        };
+        child.spinner();
+        let status_w = (child.available_width() - 96.0).max(80.0);
+        child.add_sized(
+            vec2(status_w, 22.0),
+            egui::Label::new(egui::RichText::new(format!("{stage} ({pct}%)")).font(Tokens::semibold(11.5)).color(ROYAL_BLUE)).truncate(),
+        );
+        let cancel_btn = child.add(
+            egui::Button::new(egui::RichText::new(tl!("Cancel")).font(Tokens::semibold(11.5)).color(Color32::WHITE))
+                .fill(t.danger)
+                .corner_radius(CornerRadius::same(6))
+                .min_size(vec2(72.0, 26.0)),
+        );
+        app.auto.add("creator.prompt.cancel", cancel_btn.rect, tl!("Cancel"));
+        if cancel_btn.clicked() {
+            prog.cancel.store(true, Ordering::Relaxed);
+        }
+        return;
+    }
+
     let show_chip = inner.width() > 760.0;
     let right_reserve = if show_chip { 255.0 } else { 112.0 };
     let input_w = (child.available_width() - right_reserve).max(120.0);
@@ -137,8 +161,8 @@ fn draw_prompt_bar(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, t: &To
         }
     }
 
-    let ready = !running && !app.ui.ai_tools.all_in_one_prompt.trim().is_empty();
-    let run_label = if running { tl!("Running Orpheus All-In-One…") } else { tl!("Generate & Apply") };
+    let ready = !app.ui.ai_tools.all_in_one_prompt.trim().is_empty();
+    let run_label = tl!("Generate & Apply");
     let run_btn = child.add_enabled(
         ready,
         egui::Button::new(egui::RichText::new(run_label).font(Tokens::semibold(11.5)).color(Color32::WHITE))
@@ -335,7 +359,16 @@ fn draw_inline_progress(ui: &mut egui::Ui, t: &Tokens, prog: &Arc<Progress>, fal
         Ok(s) if !s.is_empty() => s.clone(),
         _ => fallback.to_string(),
     };
-    ui.label(egui::RichText::new(msg).font(Tokens::ui(10.5)).color(ROYAL_BLUE));
+    let w = ui.available_width();
+    ui.horizontal(|ui| {
+        let lbl_w = (w - 60.0).max(40.0);
+        ui.add_sized(vec2(lbl_w, 18.0), egui::Label::new(egui::RichText::new(msg).font(Tokens::ui(10.5)).color(ROYAL_BLUE)).truncate());
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.small_button(tl!("Cancel")).clicked() {
+                prog.cancel.store(true, Ordering::Relaxed);
+            }
+        });
+    });
     let (r, _) = ui.allocate_exact_size(vec2(ui.available_width().max(40.0), 6.0), Sense::hover());
     ui.painter().rect_filled(r, 3.0, t.field_bg);
     let fill = Rect::from_min_max(r.min, pos2(r.min.x + r.width() * frac, r.max.y));
@@ -579,6 +612,10 @@ fn draw_clean_audio_cards(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens)
         ui.spacing_mut().item_spacing.y = 6.0;
         draw_card_header(ui, t, Icon::Audio, EMERALD, "Smart Pacing & Voice", "Trim silent dead air and boost studio voice clarity in 1 click.");
 
+        if let Some(prog) = active_job_progress(app, app.ui.ai_tools.silence_job) {
+            draw_inline_progress(ui, t, &prog, tl!("Scanning audio for silent pauses…"));
+            return;
+        }
         if let Some(prog) = active_job_progress(app, app.ui.ai_tools.audio_enhance_job) {
             draw_inline_progress(ui, t, &prog, tl!("Enhancing audio…"));
             return;
@@ -599,7 +636,7 @@ fn draw_clean_audio_cards(app: &mut FilmcraftApp, ui: &mut egui::Ui, t: &Tokens)
                 has_seq,
             ) {
                 let ctx = ui.ctx().clone();
-                if let Err(e) = crate::menus::invoke(app, &ctx, "ai.removePauses", json!({})) {
+                if let Err(e) = crate::menus::invoke(app, &ctx, "ai.removePauses", json!({ "async": true })) {
                     app.ui.status = e;
                 }
             }

@@ -33,8 +33,10 @@ pub const WHISPER_CLI_NAME: &str = "whisper-cli";
 const SUBTITLE_SAMPLE_RATE: u32 = 16_000;
 /// Audio rendering chunk size (10 seconds @ 16 kHz).
 const AUDIO_CHUNK_FRAMES: usize = 160_000;
-/// Hard bound on extracted audio length (2 hours @ 16 kHz) to bound allocations on untrusted sequences.
-const MAX_AUDIO_SAMPLES: usize = 2 * 3600 * SUBTITLE_SAMPLE_RATE as usize;
+/// Hard safety bound on extracted audio length (24 hours @ 16 kHz) to support 12-hour+ VODs while bounding corrupt durations.
+pub const MAX_AUDIO_SAMPLES: usize = 24 * 3600 * SUBTITLE_SAMPLE_RATE as usize;
+/// Streaming Whisper transcription window (20 minutes @ 16 kHz = 19.2M samples = ~38.4 MB WAV on disk).
+pub const WHISPER_WINDOW_SAMPLES: usize = 20 * 60 * SUBTITLE_SAMPLE_RATE as usize;
 /// Hard bound on parsed whisper JSON size (64 MiB).
 const MAX_JSON_BYTES: u64 = 64 << 20;
 
@@ -861,6 +863,84 @@ pub(crate) fn extract_audio_mono(
     Ok((mono, sr))
 }
 
+/// Stream a window of `[window_s0 .. window_s0 + window_samples)` 16 kHz mono samples directly to
+/// a 16-bit PCM `.wav` file on disk in 10-second chunks (`AUDIO_CHUNK_FRAMES`), keeping peak RAM
+/// under ~2 MB regardless of VOD length.
+pub(crate) fn stream_audio_window_to_wav(
+    plan: &AudioExtractPlan,
+    window: (i64, usize),
+    project: &Project,
+    sources: &dyn SourceProvider,
+    wav_path: &Path,
+    prog: &Progress,
+    pct: (f64, f64),
+) -> std::result::Result<u64, String> {
+    let (window_s0, window_samples) = window;
+    let (pct_start, pct_span) = pct;
+    if window_samples == 0 {
+        return Err("audio window has zero samples".into());
+    }
+    let sr = SUBTITLE_SAMPLE_RATE;
+    let data_bytes_u64 = (window_samples as u64).saturating_mul(2);
+    let data_bytes = u32::try_from(data_bytes_u64).map_err(|_| "WAV window exceeds 4 GiB RIFF limit".to_string())?;
+    let riff_size = 36_u32.saturating_add(data_bytes);
+
+    let file = std::fs::File::create(wav_path).map_err(|e| format!("create temp wav ({}): {e}", wav_path.display()))?;
+    let mut writer = BufWriter::with_capacity(256 * 1024, file);
+
+    // Write 44-byte 16-bit mono PCM RIFF/WAVE header.
+    let byte_rate = sr.saturating_mul(2);
+    let mut hdr = [0u8; 44];
+    hdr[0..4].copy_from_slice(b"RIFF");
+    hdr[4..8].copy_from_slice(&riff_size.to_le_bytes());
+    hdr[8..12].copy_from_slice(b"WAVE");
+    hdr[12..16].copy_from_slice(b"fmt ");
+    hdr[16..20].copy_from_slice(&16_u32.to_le_bytes());
+    hdr[20..22].copy_from_slice(&1_u16.to_le_bytes()); // PCM
+    hdr[22..24].copy_from_slice(&1_u16.to_le_bytes()); // 1 channel (mono)
+    hdr[24..28].copy_from_slice(&sr.to_le_bytes());
+    hdr[28..32].copy_from_slice(&byte_rate.to_le_bytes());
+    hdr[32..34].copy_from_slice(&2_u16.to_le_bytes()); // block align
+    hdr[34..36].copy_from_slice(&16_u16.to_le_bytes()); // bits per sample
+    hdr[36..40].copy_from_slice(b"data");
+    hdr[40..44].copy_from_slice(&data_bytes.to_le_bytes());
+    writer.write_all(&hdr).map_err(|e| format!("write wav header: {e}"))?;
+
+    let mut scratch = vec![0.0_f32; AUDIO_CHUNK_FRAMES.min(window_samples)];
+    let mut pcm_bytes = Vec::with_capacity(scratch.len() * 2);
+    let mut offset = 0usize;
+
+    while offset < window_samples {
+        if prog.cancel.load(Ordering::Relaxed) {
+            return Err("Cancelled".into());
+        }
+        let n = (window_samples - offset).min(AUDIO_CHUNK_FRAMES);
+        let chunk_slice = &mut scratch[..n];
+        chunk_slice.fill(0.0);
+        let chunk_start = window_s0 + offset as i64;
+        for tr in &plan.tracks {
+            let buf = filmcraft_render::audio::track_input(project, tr, chunk_start, n, sr, sources);
+            let track_mono = filmcraft_speech::downmix(&buf.channels);
+            for (dst, &src) in chunk_slice.iter_mut().zip(track_mono.iter()) {
+                *dst += src;
+            }
+        }
+        pcm_bytes.clear();
+        for &s in chunk_slice.iter() {
+            let clean = if s.is_finite() { s.clamp(-1.0, 1.0) } else { 0.0 };
+            let q = (clean * 32767.0).round().clamp(-32768.0, 32767.0) as i16;
+            pcm_bytes.extend_from_slice(&q.to_le_bytes());
+        }
+        writer.write_all(&pcm_bytes).map_err(|e| format!("write wav chunk: {e}"))?;
+        offset += n;
+        let pct = pct_start + (offset as f64 / window_samples as f64) * pct_span;
+        prog.done.store((pct.round() as u64).min(95), Ordering::Relaxed);
+    }
+    writer.flush().map_err(|e| format!("flush temp wav: {e}"))?;
+    Ok(44 + data_bytes_u64)
+}
+
+#[allow(dead_code)]
 fn extract_audio_wav(plan: &AudioExtractPlan, project: &Project, sources: &dyn SourceProvider, prog: &Progress) -> std::result::Result<Vec<u8>, String> {
     let (mono, sr) = extract_audio_mono(plan, project, sources, prog, 30.0)?;
     Ok(filmcraft_media::wav::write_wav16(&mono, 1, sr))
@@ -1085,29 +1165,27 @@ fn find_whisper_srt_output(dir: &Path) -> Option<PathBuf> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn run_whisper_cli(
+pub(crate) fn run_whisper_cli_on_wav_file(
     cli_path: &Path,
     cfg: &WhisperRunConfig<'_>,
-    wav_bytes: &[u8],
-    job_id: u64,
+    temp_dir: &Path,
+    wav_path: &Path,
     prog: &Progress,
+    pct_start: f64,
+    pct_span: f64,
 ) -> std::result::Result<Vec<WhisperSegment>, String> {
     use std::process::{Command, Stdio};
 
-    if wav_bytes.len() <= 44 {
-        return Err("Extracted 16kHz mono WAV audio is empty (<= 44 bytes); nothing to transcribe".into());
-    }
-
-    let temp_dir = create_job_temp_dir(job_id)?;
-    let wav_path = temp_dir.0.join("audio.wav");
-    let out_prefix = temp_dir.0.join("transcript");
-    let log_path = temp_dir.0.join("whisper.log");
-
-    std::fs::write(&wav_path, wav_bytes).map_err(|e| format!("write temp wav: {e}"))?;
-    let wav_meta = std::fs::metadata(&wav_path).map_err(|e| format!("stat temp wav: {e}"))?;
+    let wav_meta = std::fs::metadata(wav_path).map_err(|e| format!("stat temp wav: {e}"))?;
     if wav_meta.len() <= 44 {
         return Err("Extracted 16kHz mono WAV file on disk is empty (<= 44 bytes)".into());
     }
+    let out_prefix = temp_dir.join("transcript");
+    let log_path = temp_dir.join("whisper.log");
+    for old in ["transcript.json", "transcript.json.json", "transcript.srt", "transcript.srt.srt", "whisper.log"] {
+        let _ = std::fs::remove_file(temp_dir.join(old));
+    }
+
     let log_file = std::fs::File::create(&log_path).map_err(|e| format!("create whisper log: {e}"))?;
     let log_err = log_file.try_clone().map_err(|e| format!("clone log handle: {e}"))?;
 
@@ -1115,7 +1193,7 @@ pub(crate) fn run_whisper_cli(
     if let Some(bin_dir) = cli_path.parent().filter(|p| !p.as_os_str().is_empty()) {
         cmd.current_dir(bin_dir);
     }
-    cmd.args(whisper_cli_args(cfg.model_path, cfg.language, &wav_path, &out_prefix, cfg.mode, cfg.compute))
+    cmd.args(whisper_cli_args(cfg.model_path, cfg.language, wav_path, &out_prefix, cfg.mode, cfg.compute))
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(log_err));
@@ -1131,7 +1209,7 @@ pub(crate) fn run_whisper_cli(
     *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Transcribing audio…".into();
 
     let started = Instant::now();
-    let audio_secs = (wav_bytes.len().saturating_sub(44) as f64) / (2.0 * f64::from(SUBTITLE_SAMPLE_RATE));
+    let audio_secs = (wav_meta.len().saturating_sub(44) as f64) / (2.0 * f64::from(SUBTITLE_SAMPLE_RATE));
     let max_total_secs = (audio_secs * 5.0).clamp(180.0, 3600.0);
     let stall_limit_secs = 120.0;
     let mut last_log_len = 0u64;
@@ -1166,10 +1244,9 @@ pub(crate) fn run_whisper_cli(
                     let _ = child.wait();
                     return Err("whisper-cli timed out — try switching to CPU mode or the Base model".into());
                 }
-                // Non-blocking atomic progress inside 30..92% while child process runs.
                 let tau = (audio_secs * 0.35).clamp(10.0, 90.0);
-                let approx = 30.0 + 62.0 * (1.0 - (-elapsed / tau).exp());
-                prog.done.store((approx.round() as u64).min(92), Ordering::Relaxed);
+                let approx = pct_start + pct_span * (1.0 - (-elapsed / tau).exp());
+                prog.done.store((approx.round() as u64).min(95), Ordering::Relaxed);
                 std::thread::sleep(Duration::from_millis(100));
             }
             Err(e) => {
@@ -1178,17 +1255,15 @@ pub(crate) fn run_whisper_cli(
             }
         }
     };
-    *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = "Parsing subtitles…".into();
-    prog.done.store(95, Ordering::Relaxed);
 
-    let segments = if let Some(json_path) = find_whisper_json_output(&temp_dir.0) {
+    let segments = if let Some(json_path) = find_whisper_json_output(temp_dir) {
         let meta = std::fs::metadata(&json_path).map_err(|e| format!("whisper JSON output unreadable ({}): {e}", json_path.display()))?;
         if meta.len() > MAX_JSON_BYTES {
             return Err("whisper JSON output exceeds 64 MiB limit".into());
         }
         let bytes = std::fs::read(&json_path).map_err(|e| format!("read whisper JSON: {e}"))?;
         parse_whisper_json(&bytes)?
-    } else if let Some(srt_path) = find_whisper_srt_output(&temp_dir.0) {
+    } else if let Some(srt_path) = find_whisper_srt_output(temp_dir) {
         let bytes = std::fs::read(&srt_path).map_err(|e| format!("read whisper SRT: {e}"))?;
         parse_whisper_srt(&bytes)?
     } else {
@@ -1207,11 +1282,201 @@ pub(crate) fn run_whisper_cli(
             } else {
                 "no stdout/stderr output".to_string()
             };
-            return Err(format!("whisper JSON output missing (exit code {code_str}, dir {}): {detail}", temp_dir.0.display()));
+            return Err(format!("whisper JSON output missing (exit code {code_str}, dir {}): {detail}", temp_dir.display()));
         }
     };
-    prog.done.store(100, Ordering::Relaxed);
     Ok(segments)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn run_whisper_cli(
+    cli_path: &Path,
+    cfg: &WhisperRunConfig<'_>,
+    wav_bytes: &[u8],
+    job_id: u64,
+    prog: &Progress,
+) -> std::result::Result<Vec<WhisperSegment>, String> {
+    if wav_bytes.len() <= 44 {
+        return Err("Extracted 16kHz mono WAV audio is empty (<= 44 bytes); nothing to transcribe".into());
+    }
+    let temp_dir = create_job_temp_dir(job_id)?;
+    let wav_path = temp_dir.0.join("audio.wav");
+    std::fs::write(&wav_path, wav_bytes).map_err(|e| format!("write temp wav: {e}"))?;
+    let segs = run_whisper_cli_on_wav_file(cli_path, cfg, &temp_dir.0, &wav_path, prog, 30.0, 65.0)?;
+    prog.done.store(100, Ordering::Relaxed);
+    Ok(segs)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cleanup_window_artifacts(temp_dir: &Path, wav_path: &Path) {
+    let _ = std::fs::remove_file(wav_path);
+    for artifact in ["transcript.json", "transcript.json.json", "transcript.srt", "transcript.srt.srt", "whisper.log"] {
+        let _ = std::fs::remove_file(temp_dir.join(artifact));
+    }
+}
+
+/// Core chunked transcription loop with per-window fault isolation, drift-free `i128` timestamp
+/// offsetting, and guaranteed per-window + directory cleanup on error, cancel, or unwind.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn transcribe_plan_chunked_with<F>(
+    plan: &AudioExtractPlan,
+    project: &Project,
+    sources: &dyn SourceProvider,
+    job_id: u64,
+    prog: &Progress,
+    window_samples_max: usize,
+    mut run_window: F,
+) -> std::result::Result<Vec<WhisperSegment>, String>
+where
+    F: FnMut(usize, usize, &Path, &Path, f64, f64) -> std::result::Result<Vec<WhisperSegment>, String>,
+{
+    let sr = SUBTITLE_SAMPLE_RATE;
+    let window_cap = window_samples_max.max(sr as usize);
+    let s0 = plan.range_start.to_units_floor(i64::from(sr));
+    let s1 = plan.range_end.to_units_floor(i64::from(sr));
+    let total_samples = ((s1 - s0).max(0) as usize).min(MAX_AUDIO_SAMPLES);
+    if total_samples == 0 {
+        return Err("audio range has zero samples".into());
+    }
+
+    let temp_dir = create_job_temp_dir(job_id)?;
+    let wav_path = temp_dir.0.join("audio.wav");
+    let num_windows = total_samples.div_ceil(window_cap).max(1);
+    let mut all_segments = Vec::new();
+    let mut win_offset_samples = 0usize;
+    let mut win_idx = 0usize;
+    let mut succeeded_windows = 0usize;
+    let mut failed_windows = 0usize;
+    let mut first_error: Option<String> = None;
+
+    while win_offset_samples < total_samples {
+        if prog.cancel.load(Ordering::Relaxed) {
+            cleanup_window_artifacts(&temp_dir.0, &wav_path);
+            return Err("Cancelled".into());
+        }
+        let win_samples = (total_samples - win_offset_samples).min(window_cap);
+        let win_s0 = s0.saturating_add(win_offset_samples as i64);
+        // Exact i128 rational conversion: 19,200,000 samples / 16,000 Hz = exact 1,200,000 ms/window
+        // with zero cumulative floating-point or rounding drift across 36+ windows (12+ hours).
+        let win_offset_ms = ((win_offset_samples as i128) * 1000 / i128::from(sr)) as i64;
+
+        let base_pct = (win_idx as f64 / num_windows as f64) * 95.0;
+        let win_pct_span = 95.0 / (num_windows as f64);
+        if num_windows > 1 {
+            *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Extracting audio window {}/{num_windows}…", win_idx + 1);
+        }
+        if let Err(err) = stream_audio_window_to_wav(plan, (win_s0, win_samples), project, sources, &wav_path, prog, (base_pct, win_pct_span * 0.30)) {
+            cleanup_window_artifacts(&temp_dir.0, &wav_path);
+            if prog.cancel.load(Ordering::Relaxed) || err == "Cancelled" {
+                return Err("Cancelled".into());
+            }
+            if num_windows == 1 {
+                return Err(err);
+            }
+            log::warn!("subtitle audio extraction failed on window {}/{num_windows}: {err}", win_idx + 1);
+            failed_windows += 1;
+            if first_error.is_none() {
+                first_error = Some(err);
+            }
+            win_offset_samples += win_samples;
+            win_idx += 1;
+            continue;
+        }
+
+        if prog.cancel.load(Ordering::Relaxed) {
+            cleanup_window_artifacts(&temp_dir.0, &wav_path);
+            return Err("Cancelled".into());
+        }
+
+        if num_windows > 1 {
+            *prog.status.lock().unwrap_or_else(PoisonError::into_inner) = format!("Transcribing window {}/{num_windows}…", win_idx + 1);
+        }
+        let win_res = run_window(win_idx, num_windows, &temp_dir.0, &wav_path, base_pct + win_pct_span * 0.30, win_pct_span * 0.70);
+        cleanup_window_artifacts(&temp_dir.0, &wav_path);
+
+        match win_res {
+            Ok(mut win_segs) => {
+                succeeded_windows += 1;
+                for seg in &mut win_segs {
+                    seg.from_ms = seg.from_ms.saturating_add(win_offset_ms);
+                    seg.to_ms = seg.to_ms.saturating_add(win_offset_ms);
+                    for w in &mut seg.words {
+                        w.from_ms = w.from_ms.saturating_add(win_offset_ms);
+                        w.to_ms = w.to_ms.saturating_add(win_offset_ms);
+                    }
+                }
+                all_segments.extend(win_segs);
+            }
+            Err(err) => {
+                if prog.cancel.load(Ordering::Relaxed) || err == "Cancelled" {
+                    return Err("Cancelled".into());
+                }
+                if num_windows == 1 {
+                    return Err(err);
+                }
+                // Multi-window VOD resilience: isolate single-window failures (silent/music-only
+                // segments, malformed JSON, transient timeout) so hours of completed work survive.
+                log::warn!("whisper window {}/{num_windows} failed and was skipped: {err}", win_idx + 1);
+                failed_windows += 1;
+                if first_error.is_none() {
+                    first_error = Some(err);
+                }
+                *prog.status.lock().unwrap_or_else(PoisonError::into_inner) =
+                    format!("Window {}/{num_windows} skipped ({failed_windows} failed) — continuing…", win_idx + 1);
+            }
+        }
+        win_offset_samples += win_samples;
+        win_idx += 1;
+    }
+
+    if succeeded_windows == 0 {
+        return Err(first_error.unwrap_or_else(|| "All transcription windows failed".into()));
+    }
+    if failed_windows > 0 {
+        *prog.status.lock().unwrap_or_else(PoisonError::into_inner) =
+            format!("Transcribed {succeeded_windows}/{num_windows} windows ({failed_windows} skipped)");
+    }
+    prog.done.store(100, Ordering::Relaxed);
+    Ok(all_segments)
+}
+
+/// Stream-extract and transcribe a sequence's audio range in 20-minute windows (`WHISPER_WINDOW_SAMPLES`),
+/// offsetting segment and word timestamps by each window's start time so 12-hour+ VODs transcribe
+/// completely with < 60 MB peak RAM.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn transcribe_plan_chunked(
+    cli_path: &Path,
+    cfg: &WhisperRunConfig<'_>,
+    plan: &AudioExtractPlan,
+    project: &Project,
+    sources: &dyn SourceProvider,
+    job_id: u64,
+    prog: &Progress,
+) -> std::result::Result<Vec<WhisperSegment>, String> {
+    transcribe_plan_chunked_with(
+        plan,
+        project,
+        sources,
+        job_id,
+        prog,
+        WHISPER_WINDOW_SAMPLES,
+        |_win_idx, _num_windows, temp_dir, wav_path, pct_start, pct_span| {
+            run_whisper_cli_on_wav_file(cli_path, cfg, temp_dir, wav_path, prog, pct_start, pct_span)
+        },
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn transcribe_plan_chunked(
+    _cli_path: &Path,
+    _cfg: &WhisperRunConfig<'_>,
+    _plan: &AudioExtractPlan,
+    _project: &Project,
+    _sources: &dyn SourceProvider,
+    _job_id: u64,
+    _prog: &Progress,
+) -> std::result::Result<Vec<WhisperSegment>, String> {
+    Err("whisper-cli sidecar execution is unavailable on wasm32".into())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1825,7 +2090,7 @@ fn generate_subtitles_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     s.subtitle_jobs.push(pending);
 
     let project = s.project.clone();
-    let provider = s.media.provider(project.clone(), s.services.clone());
+    let provider = s.media.provider(project.clone(), s.services.clone()).own_sources();
     let wait = bool_p(p, "wait").unwrap_or(false);
     let range_start = plan.range_start;
     let seq_rate = plan.seq_rate;
@@ -1834,9 +2099,8 @@ fn generate_subtitles_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     let run = crate::export_tools::guard_job(prog.clone(), result.clone(), move || {
         let t0 = web_time::Instant::now();
         let outcome = (|| -> std::result::Result<Vec<SubtitleCue>, String> {
-            let wav = extract_audio_wav(&plan, &project, &provider, &prog)?;
             let cfg = WhisperRunConfig { model_path: &model_path, language: &lang_run, mode, compute };
-            let segs = run_whisper_cli(&cli_path, &cfg, &wav, id, &prog)?;
+            let segs = transcribe_plan_chunked(&cli_path, &cfg, &plan, &project, &provider, id, &prog)?;
             Ok(build_subtitle_cues(&segs, mode, range_start, seq_rate))
         })();
         let rep = match outcome {
@@ -2179,7 +2443,10 @@ mod tests {
         );
         assert!(args_cpu.iter().any(|a| a == "-ng"));
         assert!(args_cpu.iter().any(|a| a == "-oj"));
+    }
 
+    #[test]
+    fn parses_whisper_srt_and_stdout_fallbacks() {
         let srt = b"1\n00:00:00,500 --> 00:00:02,000\nHello world\n\n";
         let srt_segs = parse_whisper_srt(srt).unwrap();
         assert_eq!(srt_segs.len(), 1);
@@ -2192,17 +2459,119 @@ mod tests {
         assert_eq!(stdout_segs[0].text, "Test line");
         assert_eq!(stdout_segs[0].from_ms, 1200);
         assert_eq!(stdout_segs[0].to_ms, 3400);
+    }
 
-        // Dynamic hardware capability tiers
+    #[test]
+    fn dynamic_hardware_capability_tiers() {
+        let rx = GpuAdapterInfo { name: "AMD Radeon RX 6700 XT".into(), dedicated_vram_mb: 12_272, is_discrete: true };
+        let low_vram = GpuAdapterInfo { name: "NVIDIA GeForce GTX 1050".into(), dedicated_vram_mb: 2048, is_discrete: true };
+        let igpu = GpuAdapterInfo { name: "AMD Radeon(TM) Graphics".into(), dedicated_vram_mb: 512, is_discrete: false };
+        let mid_gpu = GpuAdapterInfo { name: "NVIDIA GeForce RTX 3060 Laptop".into(), dedicated_vram_mb: 6144, is_discrete: true };
+
         assert_eq!(feature_capability_tier(AiFeatureWeight::Lightweight, false, None, 2), HardwareCapabilityTier::Optimal);
         assert_eq!(feature_capability_tier(AiFeatureWeight::NeuralSpeech, true, Some(&rx), 12), HardwareCapabilityTier::Optimal);
         assert_eq!(feature_capability_tier(AiFeatureWeight::HeavyVisual, true, Some(&rx), 12), HardwareCapabilityTier::Optimal);
-
-        let mid_gpu = GpuAdapterInfo { name: "NVIDIA GeForce RTX 3060 Laptop".into(), dedicated_vram_mb: 6144, is_discrete: true };
         assert_eq!(feature_capability_tier(AiFeatureWeight::NeuralSpeech, true, Some(&mid_gpu), 8), HardwareCapabilityTier::Moderate);
         assert_eq!(feature_capability_tier(AiFeatureWeight::HeavyVisual, true, Some(&mid_gpu), 8), HardwareCapabilityTier::Moderate);
         assert_eq!(feature_capability_tier(AiFeatureWeight::NeuralSpeech, false, None, 8), HardwareCapabilityTier::Moderate);
         assert_eq!(feature_capability_tier(AiFeatureWeight::HeavyVisual, true, Some(&low_vram), 8), HardwareCapabilityTier::Slow);
         assert_eq!(feature_capability_tier(AiFeatureWeight::HeavyVisual, true, Some(&igpu), 8), HardwareCapabilityTier::Slow);
+    }
+
+    #[test]
+    fn multi_window_36_chunk_recovery_zero_drift_and_cleanup() {
+        // 1. Verify exact 12-hour (36 x 20-minute windows) i128 timestamp offset math has 0 ms drift.
+        let sr = i128::from(SUBTITLE_SAMPLE_RATE);
+        for win in 0usize..36 {
+            let offset_samples = win * WHISPER_WINDOW_SAMPLES;
+            let offset_ms = ((offset_samples as i128) * 1000 / sr) as i64;
+            assert_eq!(offset_ms, (win as i64) * 1_200_000, "window {win} drifted");
+        }
+        let end_12h_ms = (((36usize * WHISPER_WINDOW_SAMPLES) as i128) * 1000 / sr) as i64;
+        assert_eq!(end_12h_ms, 43_200_000, "12-hour end must be exact 43,200,000 ms");
+
+        // 2. Build a 36-second audio sequence and run 36 consecutive 1-second windows through
+        //    `transcribe_plan_chunked_with`, injecting a hard failure on window #14 (index 13).
+        let total_secs = 36u32;
+        let samples: Vec<f32> = (0..(SUBTITLE_SAMPLE_RATE * total_secs)).map(|i| (i as f32 * 0.02).sin() * 0.3).collect();
+        let wav = filmcraft_media::wav::write_wav16(&samples, 1, SUBTITLE_SAMPLE_RATE);
+
+        let mut s = Session::default();
+        let item = crate::commands::import_bytes(&mut s, "vod36.wav", wav.into(), None).unwrap();
+        s.state.project_selection = vec![item];
+        s.execute("file.newSequenceFromClip", json!({"items": [item.0]})).unwrap();
+        let seq_id = s.state.active_sequence.unwrap();
+        let seq = s.active_sequence().unwrap();
+        let plan = build_audio_plan("ai.generateSubtitles", &s, seq, seq_id, &json!({})).unwrap();
+        let provider = s.media.provider(s.project.clone(), s.services.clone());
+
+        let prog = Progress::default();
+        let mut observed_temp_dir: Option<PathBuf> = None;
+        let mut windows_seen = 0usize;
+        let segs = transcribe_plan_chunked_with(
+            &plan,
+            &s.project,
+            &provider,
+            77_014,
+            &prog,
+            SUBTITLE_SAMPLE_RATE as usize,
+            |win_idx, num_windows, temp_dir, wav_path, _, _| {
+                assert_eq!(num_windows, 36);
+                assert!(wav_path.is_file(), "window {win_idx} WAV must exist before runner");
+                if observed_temp_dir.is_none() {
+                    observed_temp_dir = Some(temp_dir.to_path_buf());
+                }
+                // Previous window's leftover transcript.json must already be deleted before this window runs.
+                assert!(!temp_dir.join("transcript.json").exists(), "stale transcript.json leaked into window {win_idx}");
+                std::fs::write(temp_dir.join("transcript.json"), b"{}").unwrap();
+                windows_seen += 1;
+
+                // Fault injection on window #14 (0-based index 13): simulates timeout / corrupt JSON.
+                if win_idx == 13 {
+                    return Err("simulated whisper timeout / malformed JSON on window #14".into());
+                }
+                Ok(vec![WhisperSegment {
+                    from_ms: 100,
+                    to_ms: 850,
+                    text: format!("Window {}", win_idx + 1),
+                    words: vec![WhisperWord { from_ms: 100, to_ms: 850, text: format!("W{}", win_idx + 1) }],
+                }])
+            },
+        )
+        .expect("35 of 36 windows should succeed when window #14 fails");
+
+        assert_eq!(windows_seen, 36);
+        assert_eq!(segs.len(), 35, "35 surviving windows must produce 35 segments");
+        assert!(segs.iter().all(|seg| seg.text != "Window 14"), "failed window #14 must be skipped cleanly");
+        assert_eq!(segs.first().unwrap().from_ms, 100);
+        assert_eq!(segs.last().unwrap().from_ms, 35_100, "window #36 timestamp must have zero drift");
+        assert_eq!(segs.last().unwrap().words[0].to_ms, 35_850);
+        let dir_path = observed_temp_dir.expect("temp dir recorded");
+        assert!(!dir_path.exists(), "TempDirGuard must remove temp dir after completion");
+
+        // 3. Verify cancellation aborts immediately and deletes temp directory.
+        let prog_cancel = Progress::default();
+        let mut cancel_temp_dir: Option<PathBuf> = None;
+        let mut cancel_runs = 0usize;
+        let cancel_res =
+            transcribe_plan_chunked_with(&plan, &s.project, &provider, 77_015, &prog_cancel, SUBTITLE_SAMPLE_RATE as usize, |win_idx, _, temp_dir, _, _, _| {
+                cancel_temp_dir = Some(temp_dir.to_path_buf());
+                cancel_runs += 1;
+                if win_idx == 2 {
+                    prog_cancel.cancel.store(true, Ordering::Relaxed);
+                    return Err("Cancelled".into());
+                }
+                Ok(vec![])
+            });
+        assert_eq!(cancel_res.unwrap_err(), "Cancelled");
+        assert_eq!(cancel_runs, 3, "must stop immediately on cancel instead of processing remaining windows");
+        assert!(!cancel_temp_dir.unwrap().exists(), "temp dir must be cleaned up on cancel");
+
+        // 4. Verify failing ALL windows returns an error (never silently claims success).
+        let prog_fail = Progress::default();
+        let all_fail = transcribe_plan_chunked_with(&plan, &s.project, &provider, 77_016, &prog_fail, SUBTITLE_SAMPLE_RATE as usize, |_, _, _, _, _, _| {
+            Err("broken whisper binary".into())
+        });
+        assert!(all_fail.unwrap_err().contains("broken whisper binary"));
     }
 }

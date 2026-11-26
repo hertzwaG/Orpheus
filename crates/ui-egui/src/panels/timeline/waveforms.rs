@@ -158,13 +158,24 @@ const MAX_PEAKS: usize = 1 << 24;
 const INITIAL_PEAKS: usize = 1 << 16;
 
 /// Min/max peaks (one per 256 samples at 48 kHz) of audio stream `stream` of `src`, `dur` long.
+#[cfg(test)]
 pub(super) fn source_peaks(src: &dyn filmcraft_media::MediaSource, stream: usize, dur: Tick) -> Vec<(f32, f32)> {
+    source_peaks_progressive(src, stream, dur, |_, _| {})
+}
+
+fn source_peaks_progressive(
+    src: &dyn filmcraft_media::MediaSource,
+    stream: usize,
+    dur: Tick,
+    mut on_chunk: impl FnMut(&[(f32, f32)], bool),
+) -> Vec<(f32, f32)> {
     let sr = 48_000u32;
     // clamp in i64 before narrowing, and saturate so the limit itself fits a 32-bit usize
     let total = dur.to_units_floor(sr as i64).max(0).min(MAX_PEAKS.saturating_mul(256) as i64) as usize;
     let mut out = Vec::with_capacity((total / 256 + 1).min(INITIAL_PEAKS));
     let chunk = 48_000 * 4;
     let mut s = 0usize;
+    let mut chunks_since_publish = 0usize;
     while s < total {
         let n = chunk.min(total - s);
         match src.audio_stream(stream, s as i64, n, sr) {
@@ -178,34 +189,54 @@ pub(super) fn source_peaks(src: &dyn filmcraft_media::MediaSource, stream: usize
             Err(_) => break,
         }
         s += n;
+        chunks_since_publish += 1;
+        if chunks_since_publish >= 15 && s < total {
+            on_chunk(&out, false);
+            chunks_since_publish = 0;
+        }
     }
+    on_chunk(&out, true);
     out
 }
 
 /// Waveform peaks of audio stream `stream` of `item` (a clip's `audio_stream`).
+///
+/// Uses an isolated [`crate::media_pool::PoolProvider::own_sources`] reader on the background
+/// thread so scanning a 12-hour VOD never locks the live timeline scrubbing decoder.
 pub(crate) fn request_peaks(app: &mut FilmcraftApp, item: ItemId, stream: usize) -> Option<Arc<Vec<(f32, f32)>>> {
     if app.session.project.sequence(item).is_some() {
         return request_sequence_peaks(app, item);
     }
     let pkey = (item, stream);
-    if let Some(p) = app.tl.peaks.lock().unwrap_or_else(|e| e.into_inner()).get(&pkey) {
-        return Some(p.clone());
+    let have = app.tl.peaks.lock().unwrap_or_else(|e| e.into_inner()).get(&pkey).cloned();
+    {
+        let pend = app.tl.peaks_pending.lock().unwrap_or_else(|e| e.into_inner());
+        if pend.contains(&pkey) {
+            return have;
+        }
     }
-    // No source: try again on a later frame instead of leaving the item pending forever.
-    let src = app.session.source(item)?;
+    if have.is_some() {
+        return have;
+    }
+    // Check that the source exists before queuing a background worker.
+    let dur = app.session.source(item)?.info().duration;
     {
         let mut pend = app.tl.peaks_pending.lock().unwrap_or_else(|e| e.into_inner());
-        if pend.contains(&pkey) {
-            return None;
-        }
         pend.push(pkey);
     }
     let peaks = app.tl.peaks.clone();
     let pending = app.tl.peaks_pending.clone();
-    let dur = src.info().duration;
+    let provider = app.session.media.provider(app.session.project.clone(), app.session.services.clone()).own_sources();
+    let fallback_src = app.session.source(item);
     let run = move || {
-        let out = source_peaks(&*src, stream, dur);
-        peaks.lock().unwrap_or_else(|e| e.into_inner()).insert(pkey, Arc::new(out));
+        let own_src = filmcraft_render::SourceProvider::source(&provider, item).or(fallback_src);
+        if let Some(src) = own_src {
+            let _ = source_peaks_progressive(&*src, stream, dur, |partial, finished| {
+                if finished || !partial.is_empty() {
+                    peaks.lock().unwrap_or_else(|e| e.into_inner()).insert(pkey, Arc::new(partial.to_vec()));
+                }
+            });
+        }
         pending.lock().unwrap_or_else(|e| e.into_inner()).retain(|i| *i != pkey);
     };
     #[cfg(not(target_arch = "wasm32"))]

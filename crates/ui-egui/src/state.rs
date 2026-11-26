@@ -284,6 +284,8 @@ pub struct AiToolsState {
     #[serde(skip)]
     pub vod_chapters_job: Option<u64>,
     #[serde(skip)]
+    pub silence_job: Option<u64>,
+    #[serde(skip)]
     pub job_queue: AiJobQueue,
     #[serde(skip)]
     pub toast: Option<AiToast>,
@@ -318,6 +320,7 @@ impl AiToolsState {
             || self.bg_removal_job.is_some()
             || self.all_in_one_job.is_some()
             || self.vod_chapters_job.is_some()
+            || self.silence_job.is_some()
     }
 
     pub fn push_toast(&mut self, title: impl Into<String>, summary: impl Into<String>, is_error: bool) {
@@ -374,6 +377,7 @@ impl Default for AiToolsState {
             ai_models_download_error: None,
             all_in_one_job: None,
             vod_chapters_job: None,
+            silence_job: None,
             job_queue: AiJobQueue::default(),
             toast: None,
         }

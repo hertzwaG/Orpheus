@@ -105,7 +105,8 @@ impl HomeArt {
     fn texture(self, ctx: &egui::Context) -> Option<TextureHandle> {
         let id = egui::Id::unique(self.key());
         ctx.data(|d| d.get_temp::<TextureHandle>(id)).or_else(|| {
-            let img = self.decoded()?;
+            let max_side = ctx.input(|i| i.max_texture_side).max(64);
+            let img = fit_texture_image(self.decoded()?, max_side);
             let tex = ctx.load_texture(self.key(), img, TextureOptions::LINEAR);
             ctx.data_mut(|d| d.insert_temp(id, tex.clone()));
             Some(tex)
@@ -113,8 +114,29 @@ impl HomeArt {
     }
 }
 
+fn fit_texture_image(img: Arc<egui::ColorImage>, max_side: usize) -> Arc<egui::ColorImage> {
+    let [w, h] = img.size;
+    if w == 0 || h == 0 || (w <= max_side && h <= max_side) {
+        return img;
+    }
+    let scale = (max_side as f64 / w.max(h) as f64).min(1.0);
+    let nw = ((w as f64 * scale).floor() as usize).clamp(1, max_side);
+    let nh = ((h as f64 * scale).floor() as usize).clamp(1, max_side);
+    let mut pixels = Vec::with_capacity(nw.saturating_mul(nh));
+    for y in 0..nh {
+        let sy = (y.saturating_mul(h) / nh).min(h - 1);
+        for x in 0..nw {
+            let sx = (x.saturating_mul(w) / nw).min(w - 1);
+            pixels.push(img.pixels[sy * w + sx]);
+        }
+    }
+    Arc::new(egui::ColorImage { size: [nw, nh], source_size: egui::vec2(nw as f32, nh as f32), pixels })
+}
+
 fn decode_png(bytes: &[u8]) -> Option<Arc<egui::ColorImage>> {
-    let rgba = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok()?.into_rgba8();
+    let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok()?;
+    let img = if img.width() > 2048 || img.height() > 2048 { img.resize(2048, 2048, image::imageops::FilterType::Triangle) } else { img };
+    let rgba = img.into_rgba8();
     let size = [rgba.width() as usize, rgba.height() as usize];
     Some(Arc::new(egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw())))
 }

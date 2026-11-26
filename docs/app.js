@@ -469,6 +469,10 @@
     const dlDirectLinkEl = document.getElementById('dl-direct-link');
     const dlReleasesLinkEl = document.getElementById('dl-releases-link');
     const dlStepsEl = document.getElementById('dl-steps-list');
+    const dlChecksumBoxEl = document.getElementById('dl-checksum-box');
+    const dlChecksumHashEl = document.getElementById('dl-checksum-hash');
+    const dlChecksumLinkEl = document.getElementById('dl-checksum-link');
+    const dlChecksumCopyBtn = document.getElementById('dl-checksum-copy');
     const dlSmartScreenEl = document.getElementById('dl-smartscreen-note');
     const dlCloseBtn = document.getElementById('dl-dialog-close');
     const dlDoneBtn = document.getElementById('dl-dialog-done');
@@ -585,11 +589,45 @@
           .join('');
       }
 
+      if (dlChecksumBoxEl) {
+        if (item.sha256) {
+          dlChecksumBoxEl.hidden = false;
+          if (dlChecksumHashEl) dlChecksumHashEl.textContent = item.sha256;
+          if (dlChecksumLinkEl && item.releaseTagUrl) {
+            dlChecksumLinkEl.setAttribute('href', item.releaseTagUrl);
+          }
+          if (dlChecksumCopyBtn) {
+            dlChecksumCopyBtn.textContent = 'Copy';
+            dlChecksumCopyBtn.setAttribute('data-copy-hash', item.sha256);
+          }
+        } else {
+          dlChecksumBoxEl.hidden = true;
+        }
+      }
+
       if (dlSmartScreenEl) {
         dlSmartScreenEl.textContent = item.smartScreenNote || '';
       }
 
       openDialogElement(dlDialog);
+    }
+
+    if (dlChecksumCopyBtn) {
+      dlChecksumCopyBtn.addEventListener('click', function () {
+        const hash = dlChecksumCopyBtn.getAttribute('data-copy-hash') || '';
+        if (!hash || !navigator.clipboard) return;
+        navigator.clipboard
+          .writeText(hash)
+          .then(function () {
+            dlChecksumCopyBtn.textContent = 'Copied';
+            setTimeout(function () {
+              dlChecksumCopyBtn.textContent = 'Copy';
+            }, 1800);
+          })
+          .catch(function () {
+            // Ignore clipboard errors
+          });
+      });
     }
 
     document.addEventListener('click', function (event) {

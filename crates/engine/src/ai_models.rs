@@ -1535,7 +1535,7 @@ mod tests {
         // Build a minimal valid ONNX ModelProto: x -> Conv(3->1, 1x1) -> Sigmoid -> y
         let mut weight_proto = Vec::new();
         for &d in &[1u64, 3, 1, 1] {
-            encode_varint((1 << 3) | 0, &mut weight_proto);
+            encode_varint(1 << 3, &mut weight_proto);
             encode_varint(d, &mut weight_proto);
         }
         push_len_field(8, b"w", &mut weight_proto);
@@ -1570,7 +1570,7 @@ mod tests {
         push_len_field(12, &vi_out, &mut graph);
 
         let mut model = Vec::new();
-        encode_varint((1 << 3) | 0, &mut model);
+        encode_varint(1 << 3, &mut model);
         encode_varint(8, &mut model);
         push_len_field(7, &graph, &mut model);
 

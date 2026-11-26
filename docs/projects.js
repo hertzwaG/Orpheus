@@ -9,13 +9,15 @@ window.YBV_SOFTWARE = [
     id: 'orpheus',
     icon: 'lyre',
     name: 'Orpheus',
-    version: 'v1.0.10',
+    version: 'v1.0.11',
     status: 'active',
     statusBadges: [{ label: 'Free Download', variant: 'active' }],
     featured: true,
     category: 'Pro Video Editor with Built-In AI',
-    installerFilename: 'Orpheus-v1.0.10-Setup.exe',
-    fileMetaLine: 'Orpheus-v1.0.10-Setup.exe • 39 MB • Windows 10/11 64-bit • Free',
+    installerFilename: 'Orpheus-v1.0.11-Setup.exe',
+    sha256: '86f8abef6c8cdbdc23c40e0bb96019b6ce72a24eebc2023aae641e8de928938f',
+    releaseTagUrl: 'https://github.com/hertzwaG/Orpheus/releases/tag/v1.0.11',
+    fileMetaLine: 'Orpheus-v1.0.11-Setup.exe • 39 MB • Windows 10/11 64-bit • Free',
     summaryHtml:
       'Turn raw clips into <strong class="hl-blue">Shorts</strong> or full videos in minutes. Everything runs on your PC with <strong class="hl-white">no accounts or limits</strong>.',
     description:
@@ -27,9 +29,9 @@ window.YBV_SOFTWARE = [
       { label: 'No Watermarks' }
     ],
     downloadUrl:
-      'https://github.com/hertzwaG/Orpheus/releases/download/v1.0.10/Orpheus-v1.0.10-Setup.exe',
+      'https://github.com/hertzwaG/Orpheus/releases/download/v1.0.11/Orpheus-v1.0.11-Setup.exe',
     downloadLabel: 'Download for Windows',
-    downloadCtaVersion: 'Download Orpheus v1.0.10',
+    downloadCtaVersion: 'Download Orpheus v1.0.11',
     sourceUrl: 'https://github.com/hertzwaG/Orpheus',
     sourceLabel: 'GitHub',
     releasesUrl: 'https://github.com/hertzwaG/Orpheus/releases',
@@ -37,7 +39,7 @@ window.YBV_SOFTWARE = [
     installSteps: [
       {
         step: '1',
-        title: 'Run Orpheus-v1.0.10-Setup.exe',
+        title: 'Run Orpheus-v1.0.11-Setup.exe',
         detail: 'Open the 39 MB installer and finish setup in a few seconds.'
       },
       {
@@ -54,10 +56,11 @@ window.YBV_SOFTWARE = [
     smartScreenNote:
       'Windows SmartScreen tip: Because Orpheus is an independent free desktop app, Windows may show a blue prompt on first run. Click "More info" and then "Run anyway" to install.',
     specs: [
-      { label: 'Version', value: 'v1.0.10' },
-      { label: 'Installer', value: 'Orpheus-v1.0.10-Setup.exe (39 MB)' },
+      { label: 'Version', value: 'v1.0.11' },
+      { label: 'Installer', value: 'Orpheus-v1.0.11-Setup.exe (39 MB)' },
+      { label: 'SHA-256', value: '86f8abef6c8cdbdc23c40e0bb96019b6ce72a24eebc2023aae641e8de928938f' },
       { label: 'System', value: 'Windows 10 & Windows 11 (64-bit)' },
-      { label: 'Local AI Subtitles', value: 'Offline speech-to-text with zero cloud limits' },
+      { label: 'Local AI Subtitles', value: 'Whisper model downloaded once on first use, then 100% offline' },
       { label: 'Effects & Transitions', value: 'Live color grading, transitions, and visual looks' },
       { label: 'Fast MP4 Export', value: 'Smooth, high-quality MP4 video output' },
       { label: 'Price', value: '100% Free Windows software (no subscriptions)' }

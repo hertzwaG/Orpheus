@@ -12,7 +12,7 @@
 //! - AI reframe, Game Stream split-screen, background removal, viral clips, smart triggers, and VOD chapters
 
 use std::io::Read;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -80,11 +80,46 @@ struct PreparedAllInOneOutput {
     attachments: Vec<PreparedAttachment>,
 }
 
+/// Sequential execution stage for an async multi-step Orpheus All-In-One prompt pipeline.
+///
+/// Guarantees that timeline-mutating background jobs (`PendingSilenceJob` -> `PendingAudioEnhanceJob`
+/// -> `PendingAutoReframeJob` -> `PendingBgRemovalJob` -> `PendingSubtitle` -> `PendingVodChapterJob`
+/// -> `PendingViralJob` -> `PendingSmartTriggerJob`) execute and commit to the sequence one at a
+/// time in strict dependency order, preventing timestamp drift on 12-hour VODs while keeping the
+/// UI thread 100% non-blocking.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum PipelineStage {
+    #[default]
+    Planning,
+    AttachmentsAndPreCuts,
+    RemovePauses,
+    AudioOps,
+    AutoReframe,
+    BgRemoval,
+    Subtitles,
+    VodChapters,
+    ViralClips,
+    SmartTriggers,
+    FinalVisualsAndText,
+    Done,
+}
+
 pub struct PendingAllInOneJob {
     pub(crate) job: u64,
     pub(crate) epoch: u64,
     pub(crate) prompt: String,
+    plan_ready: Arc<AtomicBool>,
     output: Arc<Mutex<Option<PreparedAllInOneOutput>>>,
+    plan: Option<AllInOnePlan>,
+    attachments: Vec<PreparedAttachment>,
+    seq_id: Option<ItemId>,
+    stage: PipelineStage,
+    waiting_on_job: Option<u64>,
+    waiting_step_success: Option<String>,
+    waiting_step_fail_prefix: Option<String>,
+    steps_applied: Vec<String>,
+    attachments_imported: usize,
+    started_at: web_time::Instant,
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -196,8 +231,40 @@ pub fn plan_from_prompt(prompt: &str, _attachment_count: usize) -> AllInOnePlan 
         || (lower.contains("надпис") && !lower.contains("надписи"));
     let text_overlay_content = if run_text_overlay { Some(extract_overlay_text(trimmed)) } else { None };
 
-    let run_remove_pauses = contains_any(&lower, &["silence", "pause", "dead air", "паузи", "тишина", "празни места"]);
-    let run_split_at_playhead = contains_any(&lower, &["изрежи", "срежи", "раздели", "отрежи", "cut", "trim", "split", "razor"]) && !run_remove_pauses;
+    let run_remove_pauses =
+        contains_any(&lower, &["silence", "silences", "pause", "pauses", "dead air", "паузи", "паузите", "тишина", "тишината", "празни места"]);
+    let wants_vertical =
+        contains_any(&lower, &["9:16", "vertical", "tiktok", "reels", "shorts", "шортс", "reframe", "вертикално", "вертикален", "тикток", "рийлс"]);
+    let mentions_facecam = contains_any(&lower, &["фейскам", "facecam", "face cam", "webcam", "камера", "game stream", "стрийм"]);
+    let explicit_split_screen = contains_any(&lower, &["split screen", "split-screen", "gaming split", "game stream"]);
+    let reframe_split_screen = explicit_split_screen || (wants_vertical && mentions_facecam);
+    let run_auto_reframe = reframe_split_screen || wants_vertical;
+    let run_bg_removal = contains_any(&lower, &["remove background", "transparent", "green screen", "премахни фон"]);
+    let run_viral_clips = contains_any(&lower, &["viral", "highlight", "вайръл", "акценти", "най-добри моменти"]);
+    let run_smart_triggers = contains_any(&lower, &["smart trigger", "auto b-roll", "смарт тригери", "тригери"]);
+    let run_vod_chapters = contains_any(
+        &lower,
+        &[
+            "vod",
+            "chapter",
+            "chapters",
+            "глави",
+            "глава",
+            "секции",
+            "секция",
+            "раздели по теми",
+            "раздели на глави",
+            "split into chapters",
+            "split by topic",
+            "split into sections",
+        ],
+    );
+    let explicit_playhead_cut = contains_any(&lower, &["playhead", "плейхед", "razor"]);
+    let run_split_at_playhead = explicit_playhead_cut
+        || (contains_any(&lower, &["изрежи", "срежи", "раздели", "отрежи", "cut", "trim", "split"])
+            && !run_remove_pauses
+            && !run_vod_chapters
+            && !explicit_split_screen);
     let speed_percent = parse_speed_percent(&lower);
 
     let transition_effect = if contains_any(&lower, &["затъмняване", "dip to black", "fade to black", "fade out", "fade in"]) {
@@ -226,17 +293,6 @@ pub fn plan_from_prompt(prompt: &str, _attachment_count: usize) -> AllInOnePlan 
     } else {
         None
     };
-
-    let wants_vertical =
-        contains_any(&lower, &["9:16", "vertical", "tiktok", "reels", "shorts", "шортс", "reframe", "вертикално", "вертикален", "тикток", "рийлс"]);
-    let mentions_facecam = contains_any(&lower, &["фейскам", "facecam", "face cam", "webcam", "камера", "game stream", "стрийм"]);
-    let explicit_split_screen = contains_any(&lower, &["split screen", "split-screen", "gaming split", "game stream"]);
-    let reframe_split_screen = explicit_split_screen || (wants_vertical && mentions_facecam);
-    let run_auto_reframe = reframe_split_screen || wants_vertical;
-    let run_bg_removal = contains_any(&lower, &["remove background", "transparent", "green screen", "премахни фон"]);
-    let run_viral_clips = contains_any(&lower, &["viral", "highlight", "вайръл"]);
-    let run_smart_triggers = contains_any(&lower, &["smart trigger", "auto b-roll"]);
-    let run_vod_chapters = contains_any(&lower, &["vod", "chapter", "глави"]);
 
     AllInOnePlan {
         prompt_summary: trimmed.chars().take(120).collect(),
@@ -483,17 +539,10 @@ fn apply_ai_and_subtitle_steps(s: &mut Session, plan: &AllInOnePlan, steps_appli
     if plan.run_bg_removal && s.execute("ai.removeBackground", json!({"mode": "transparentAlpha", "wait": true})).is_ok() {
         steps_applied.push("AI Background Removal".into());
     }
-    if plan.run_vod_chapters && s.execute("ai.vodChapters", json!({"wait": true})).is_ok() {
-        steps_applied.push("Stream VOD Chapterizer".into());
-    }
-    if plan.run_viral_clips && s.execute("ai.findViralClips", json!({"wait": true})).is_ok() {
-        steps_applied.push("AI Viral Clip Finder".into());
-    }
-    if plan.run_smart_triggers && s.execute("ai.applySmartTriggers", json!({"wait": true})).is_ok() {
-        steps_applied.push("AI Smart Triggers".into());
-    }
 
-    // 5. Subtitles (always after `ai.autoReframe` so Game Stream captions anchor above FaceCam).
+    // 5. Subtitles (always after `ai.removePauses` and `ai.autoReframe` so timestamps match the
+    // post-cut timeline and Game Stream captions anchor above FaceCam, and BEFORE `ai.vodChapters` /
+    // `ai.findViralClips` / `ai.applySmartTriggers` so downstream tools reuse the generated captions).
     if plan.run_subtitles {
         let mut params = json!({"wait": true});
         if let Some(lang) = &plan.subtitle_language {
@@ -506,6 +555,16 @@ fn apply_ai_and_subtitle_steps(s: &mut Session, plan: &AllInOnePlan, steps_appli
             }),
             Err(e) => steps_applied.push(format!("AI Subtitles failed: {e}")),
         }
+    }
+
+    if plan.run_vod_chapters && s.execute("ai.vodChapters", json!({"wait": true})).is_ok() {
+        steps_applied.push("Stream VOD Chapterizer".into());
+    }
+    if plan.run_viral_clips && s.execute("ai.findViralClips", json!({"wait": true})).is_ok() {
+        steps_applied.push("AI Viral Clip Finder".into());
+    }
+    if plan.run_smart_triggers && s.execute("ai.applySmartTriggers", json!({"wait": true})).is_ok() {
+        steps_applied.push("AI Smart Triggers".into());
     }
 }
 
@@ -626,25 +685,408 @@ fn apply_all_in_one_to_session(s: &mut Session, out: PreparedAllInOneOutput) -> 
     Ok(rep)
 }
 
-/// Apply completed background Orpheus All-In-One jobs on the session thread.
+fn poll_child_queues(s: &mut Session) {
+    crate::silence::poll(s);
+    crate::audio_enhance::poll(s);
+    crate::auto_reframe::poll(s);
+    crate::bg_removal::poll(s);
+    crate::subtitles::poll(s);
+    crate::vod_chapters::poll(s);
+    crate::viral_clips::poll(s);
+    crate::smart_triggers::poll(s);
+}
+
+fn is_child_job_active(s: &Session, child_id: u64) -> bool {
+    let job_running = s.jobs.iter().find(|j| j.id == child_id).is_some_and(|j| !j.progress.finished.load(Ordering::Relaxed));
+    if job_running {
+        return true;
+    }
+    s.silence_jobs.iter().any(|j| j.job == child_id)
+        || s.audio_enhance_jobs.iter().any(|j| j.job == child_id)
+        || s.auto_reframe_jobs.iter().any(|j| j.job == child_id)
+        || s.bg_removal_jobs.iter().any(|j| j.job == child_id)
+        || s.subtitle_jobs.iter().any(|j| j.job == child_id)
+        || s.vod_chapters_jobs.iter().any(|j| j.job == child_id)
+        || s.viral_jobs.iter().any(|j| j.job == child_id)
+        || s.smart_trigger_jobs.iter().any(|j| j.job == child_id)
+}
+
+fn child_job_error(s: &Session, child_id: u64) -> Option<String> {
+    let job = s.jobs.iter().find(|j| j.id == child_id)?;
+    if let Some(Err(e)) = lock(&job.result).clone() {
+        return Some(e);
+    }
+    lock(&job.progress.error).clone()
+}
+
+fn apply_audio_instant_ops(s: &mut Session, sid: ItemId, plan: &AllInOnePlan, steps_applied: &mut Vec<String>) {
+    if plan.audio_mute {
+        let aclips = target_audio_clips(s, sid);
+        let mut muted = 0usize;
+        for cid in aclips {
+            if s.execute("effects.apply", json!({"clips": [cid.0], "effect": "Mute"})).is_ok()
+                && s.execute("effects.setParam", json!({"clip": cid.0, "effect": "mute", "param": "mute", "value": true})).is_ok()
+            {
+                muted += 1;
+            }
+        }
+        if muted > 0 {
+            steps_applied.push(format!("Muted {muted} audio clip(s)"));
+        } else {
+            steps_applied.push("Mute skipped (no unlocked audio clips)".into());
+        }
+    }
+    if plan.audio_normalize {
+        let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "normalizeAll", "db": -3.0})).is_ok() {
+            steps_applied.push("Normalized audio peaks to -3 dB".into());
+        }
+    }
+    if let Some(db) = plan.audio_gain_db {
+        let aclips: Vec<u64> = target_audio_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if !aclips.is_empty() && s.execute("clip.audioGain", json!({"clips": aclips, "mode": "adjust", "db": db})).is_ok() {
+            steps_applied.push(format!("Adjusted audio gain by {db:+.1} dB"));
+        }
+    }
+}
+
+fn apply_attachments_and_precuts(s: &mut Session, pj: &mut PendingAllInOneJob, plan: &AllInOnePlan) -> bool {
+    let mut attachments_skipped = 0usize;
+    for att in &pj.attachments {
+        match crate::commands::import_bytes(s, &att.orig_path, att.bytes.clone(), None) {
+            Ok(_) => pj.attachments_imported += 1,
+            Err(_) => attachments_skipped += 1,
+        }
+    }
+    if pj.attachments_imported > 0 {
+        pj.steps_applied.push(format!("Imported {} attachment(s)", pj.attachments_imported));
+    }
+    if attachments_skipped > 0 {
+        pj.steps_applied.push(format!("Skipped {attachments_skipped} unreadable attachment(s)"));
+    }
+    let seq_id = s.state.active_sequence.or_else(|| s.project.sequences().next().map(|q| q.id));
+    pj.seq_id = seq_id;
+    let Some(sid) = seq_id else {
+        pj.steps_applied.push("No active sequence open — open or create a sequence first".into());
+        return false;
+    };
+    if plan.run_split_at_playhead {
+        let t = s.playhead();
+        match s.execute("timeline.razor", json!({"time": t.0})) {
+            Ok(v) => {
+                let cuts = v.get("cuts").and_then(Value::as_u64).unwrap_or(0);
+                pj.steps_applied.push(if cuts > 0 { format!("Split {cuts} clip(s) at playhead") } else { "No clip under playhead to split".into() });
+            }
+            Err(e) => pj.steps_applied.push(format!("Split failed: {e}")),
+        }
+    }
+    if let Some(speed) = plan.speed_percent {
+        let clips: Vec<u64> = target_all_clips(s, sid).into_iter().map(|c| c.0).collect();
+        if clips.is_empty() {
+            pj.steps_applied.push("Speed change skipped (no unlocked clips on timeline)".into());
+        } else if s.execute("clip.speedDuration", json!({"clips": clips, "speed": speed})).is_ok() {
+            pj.steps_applied.push(format!("Set clip speed to {speed:.0}%"));
+        }
+    }
+    true
+}
+
+fn advance_pipeline_step(s: &mut Session, pj: &mut PendingAllInOneJob) {
+    let Some(plan) = pj.plan.clone() else { return };
+
+    loop {
+        match pj.stage {
+            PipelineStage::Planning => {
+                pj.stage = PipelineStage::AttachmentsAndPreCuts;
+            }
+            PipelineStage::AttachmentsAndPreCuts => {
+                if !apply_attachments_and_precuts(s, pj, &plan) {
+                    pj.stage = PipelineStage::Done;
+                    continue;
+                }
+                pj.stage = PipelineStage::RemovePauses;
+            }
+            PipelineStage::RemovePauses => {
+                pj.stage = PipelineStage::AudioOps;
+                if plan.run_remove_pauses {
+                    match s.execute("ai.removePauses", json!({"async": true})) {
+                        Ok(v) => {
+                            if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                                pj.waiting_on_job = Some(child_id);
+                                pj.waiting_step_success = Some("Removed silences".into());
+                                pj.waiting_step_fail_prefix = Some("Remove silences skipped".into());
+                                return;
+                            }
+                            pj.steps_applied.push("Removed silences".into());
+                        }
+                        Err(e) => pj.steps_applied.push(format!("Remove silences skipped: {e}")),
+                    }
+                }
+            }
+            PipelineStage::AudioOps => {
+                pj.stage = PipelineStage::AutoReframe;
+                if let Some(sid) = pj.seq_id {
+                    apply_audio_instant_ops(s, sid, &plan, &mut pj.steps_applied);
+                }
+                if plan.run_audio_enhance
+                    && let Ok(v) = s.execute("ai.enhanceAudio", json!({"wait": false}))
+                {
+                    if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                        pj.waiting_on_job = Some(child_id);
+                        pj.waiting_step_success = Some("AI Audio Enhance".into());
+                        pj.waiting_step_fail_prefix = None;
+                        return;
+                    }
+                    pj.steps_applied.push("AI Audio Enhance".into());
+                }
+            }
+            PipelineStage::AutoReframe => {
+                pj.stage = PipelineStage::BgRemoval;
+                if plan.run_auto_reframe {
+                    let mut params = json!({
+                        "aspect": "9:16",
+                        "resizeSequence": true,
+                        "splitScreen": plan.reframe_split_screen,
+                        "wait": false
+                    });
+                    if plan.reframe_split_screen {
+                        params["facecamPlacement"] = json!("bottom");
+                        params["facecamRegion"] = json!("auto");
+                    }
+                    let label = if plan.reframe_split_screen { "Gaming Split-Screen (9:16)" } else { "AI Auto-Reframe (9:16)" };
+                    if let Ok(v) = s.execute("ai.autoReframe", params) {
+                        if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                            pj.waiting_on_job = Some(child_id);
+                            pj.waiting_step_success = Some(label.into());
+                            pj.waiting_step_fail_prefix = None;
+                            return;
+                        }
+                        pj.steps_applied.push(label.into());
+                    }
+                }
+            }
+            PipelineStage::BgRemoval => {
+                pj.stage = PipelineStage::Subtitles;
+                if plan.run_bg_removal
+                    && let Ok(v) = s.execute("ai.removeBackground", json!({"mode": "transparentAlpha", "wait": false}))
+                {
+                    if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                        pj.waiting_on_job = Some(child_id);
+                        pj.waiting_step_success = Some("AI Background Removal".into());
+                        pj.waiting_step_fail_prefix = None;
+                        return;
+                    }
+                    pj.steps_applied.push("AI Background Removal".into());
+                }
+            }
+            PipelineStage::Subtitles => {
+                pj.stage = PipelineStage::VodChapters;
+                if plan.run_subtitles {
+                    let mut params = json!({"wait": false});
+                    if let Some(lang) = &plan.subtitle_language {
+                        params["language"] = json!(lang);
+                    }
+                    let ok_label = match &plan.subtitle_language {
+                        Some(lang) => format!("Generated AI Subtitles ({lang})"),
+                        None => "Generated AI Subtitles".into(),
+                    };
+                    match s.execute("ai.generateSubtitles", params) {
+                        Ok(v) => {
+                            if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                                pj.waiting_on_job = Some(child_id);
+                                pj.waiting_step_success = Some(ok_label);
+                                pj.waiting_step_fail_prefix = Some("AI Subtitles failed".into());
+                                return;
+                            }
+                            pj.steps_applied.push(ok_label);
+                        }
+                        Err(e) => pj.steps_applied.push(format!("AI Subtitles failed: {e}")),
+                    }
+                }
+            }
+            PipelineStage::VodChapters => {
+                pj.stage = PipelineStage::ViralClips;
+                if plan.run_vod_chapters
+                    && let Ok(v) = s.execute("ai.vodChapters", json!({"wait": false}))
+                {
+                    if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                        pj.waiting_on_job = Some(child_id);
+                        pj.waiting_step_success = Some("Stream VOD Chapterizer".into());
+                        pj.waiting_step_fail_prefix = None;
+                        return;
+                    }
+                    pj.steps_applied.push("Stream VOD Chapterizer".into());
+                }
+            }
+            PipelineStage::ViralClips => {
+                pj.stage = PipelineStage::SmartTriggers;
+                if plan.run_viral_clips
+                    && let Ok(v) = s.execute("ai.findViralClips", json!({"wait": false}))
+                {
+                    if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                        pj.waiting_on_job = Some(child_id);
+                        pj.waiting_step_success = Some("AI Viral Clip Finder".into());
+                        pj.waiting_step_fail_prefix = None;
+                        return;
+                    }
+                    pj.steps_applied.push("AI Viral Clip Finder".into());
+                }
+            }
+            PipelineStage::SmartTriggers => {
+                pj.stage = PipelineStage::FinalVisualsAndText;
+                if plan.run_smart_triggers
+                    && let Ok(v) = s.execute("ai.applySmartTriggers", json!({"wait": false}))
+                {
+                    if let Some(child_id) = v.get("job").and_then(Value::as_u64) {
+                        pj.waiting_on_job = Some(child_id);
+                        pj.waiting_step_success = Some("AI Smart Triggers".into());
+                        pj.waiting_step_fail_prefix = None;
+                        return;
+                    }
+                    pj.steps_applied.push("AI Smart Triggers".into());
+                }
+            }
+            PipelineStage::FinalVisualsAndText => {
+                if let Some(sid) = pj.seq_id {
+                    apply_visual_and_text_steps(s, sid, &plan, &mut pj.steps_applied);
+                }
+                pj.stage = PipelineStage::Done;
+            }
+            PipelineStage::Done => break,
+        }
+    }
+}
+
+/// Advance active multi-step Orpheus All-In-One pipelines on the session thread.
+///
+/// Ensures child background jobs (`PendingSilenceJob`, `PendingSubtitle`, `PendingVodChapterJob`,
+/// etc.) finish and commit their timeline edits one stage at a time before the next stage begins.
 pub fn poll(s: &mut Session) {
+    if s.all_in_one_jobs.is_empty() {
+        return;
+    }
+    poll_child_queues(s);
+
     let mut i = 0usize;
     while i < s.all_in_one_jobs.len() {
-        let job = s.jobs.iter().find(|j| j.id == s.all_in_one_jobs[i].job);
-        let finished = job.is_none_or(|j| j.progress.finished.load(Ordering::Relaxed));
-        let cancelled = job.is_some_and(|j| j.progress.cancel.load(Ordering::Relaxed));
-        if !finished {
-            i += 1;
+        let master_id = s.all_in_one_jobs[i].job;
+        let master_cancelled = s.jobs.iter().find(|j| j.id == master_id).is_some_and(|j| j.progress.cancel.load(Ordering::Relaxed));
+        let master_failed_early = s
+            .jobs
+            .iter()
+            .find(|j| j.id == master_id)
+            .is_some_and(|j| j.progress.finished.load(Ordering::Relaxed) && lock(&j.result).as_ref().is_some_and(std::result::Result::is_err));
+
+        if master_failed_early {
+            s.all_in_one_jobs.remove(i);
             continue;
         }
-        let pj = s.all_in_one_jobs.remove(i);
-        let Some(output) = lock(&pj.output).take().filter(|_| !cancelled) else { continue };
-        if pj.epoch != s.document_epoch {
+
+        if master_cancelled {
+            if let Some(child_id) = s.all_in_one_jobs[i].waiting_on_job
+                && let Some(cj) = s.jobs.iter().find(|j| j.id == child_id)
+            {
+                cj.progress.cancel.store(true, Ordering::Relaxed);
+            }
+            if let Some(mj) = s.jobs.iter().find(|j| j.id == master_id) {
+                *lock(&mj.progress.status) = "Cancelled".into();
+                *lock(&mj.progress.error) = Some("Cancelled".into());
+                *lock(&mj.result) = Some(Err("Cancelled".into()));
+                mj.progress.finished.store(true, Ordering::Relaxed);
+            }
+            s.all_in_one_jobs.remove(i);
+            continue;
+        }
+
+        if s.all_in_one_jobs[i].epoch != s.document_epoch {
+            if let Some(child_id) = s.all_in_one_jobs[i].waiting_on_job
+                && let Some(cj) = s.jobs.iter().find(|j| j.id == child_id)
+            {
+                cj.progress.cancel.store(true, Ordering::Relaxed);
+            }
+            if let Some(mj) = s.jobs.iter().find(|j| j.id == master_id) {
+                mj.progress.finished.store(true, Ordering::Relaxed);
+            }
+            s.all_in_one_jobs.remove(i);
             s.error_toast("ai.allInOne", "Orpheus All-In-One: the project was replaced; nothing was changed");
             continue;
         }
-        if let Err(e) = apply_all_in_one_to_session(s, output) {
-            s.error_toast("ai.allInOne", format!("Orpheus All-In-One failed: {e}"));
+
+        // Wait for the background planning worker to finish building `PreparedAllInOneOutput`.
+        if s.all_in_one_jobs[i].plan.is_none() {
+            if !s.all_in_one_jobs[i].plan_ready.load(Ordering::Acquire) {
+                i += 1;
+                continue;
+            }
+            let Some(prep) = lock(&s.all_in_one_jobs[i].output).take() else {
+                s.all_in_one_jobs.remove(i);
+                continue;
+            };
+            s.all_in_one_jobs[i].plan = Some(prep.plan);
+            s.all_in_one_jobs[i].attachments = prep.attachments;
+            s.all_in_one_jobs[i].stage = PipelineStage::AttachmentsAndPreCuts;
+        }
+
+        // If waiting on a child background job, check whether it has finished and committed.
+        if let Some(child_id) = s.all_in_one_jobs[i].waiting_on_job {
+            if is_child_job_active(s, child_id) {
+                let child_info = s.jobs.iter().find(|j| j.id == child_id).map(|j| (lock(&j.progress.status).clone(), j.progress.fraction()));
+                if let Some((child_status, child_frac)) = child_info
+                    && let Some(mj) = s.jobs.iter().find(|j| j.id == master_id)
+                {
+                    if !child_status.is_empty() {
+                        *lock(&mj.progress.status) = child_status;
+                    }
+                    let done_pct = (15.0 + child_frac.clamp(0.0, 1.0) * 80.0).round() as u64;
+                    mj.progress.done.store(done_pct.min(95), Ordering::Relaxed);
+                }
+                i += 1;
+                continue;
+            }
+            let err = child_job_error(s, child_id);
+            let pj = &mut s.all_in_one_jobs[i];
+            pj.waiting_on_job = None;
+            let ok_label = pj.waiting_step_success.take();
+            let fail_prefix = pj.waiting_step_fail_prefix.take();
+            match (err, ok_label, fail_prefix) {
+                (None, Some(lbl), _) => pj.steps_applied.push(lbl),
+                (Some(e), _, Some(prefix)) => pj.steps_applied.push(format!("{prefix}: {e}")),
+                _ => {}
+            }
+        }
+
+        // Temporarily take `pj` out of `s.all_in_one_jobs` so `advance_pipeline_step` can mutate `s`.
+        let mut pj = s.all_in_one_jobs.remove(i);
+        advance_pipeline_step(s, &mut pj);
+
+        if pj.waiting_on_job.is_some() && pj.stage != PipelineStage::Done {
+            s.all_in_one_jobs.insert(i, pj);
+            i += 1;
+            continue;
+        }
+
+        // Pipeline completed all stages!
+        if pj.steps_applied.is_empty() {
+            pj.steps_applied.push("No matching timeline editing actions recognized in prompt".into());
+        }
+        let used_ollama = pj.plan.as_ref().is_some_and(|pl| pl.used_ollama);
+        let rep = AllInOneReport {
+            seq: pj.seq_id,
+            steps_applied: pj.steps_applied,
+            generated_layers: 0,
+            attachments_imported: pj.attachments_imported,
+            wikimedia_fetched: 0,
+            used_ollama,
+        };
+        s.all_in_one_report = Some(rep.clone());
+        s.toast(format!("Orpheus All-In-One: {}", rep.steps_applied.join(" · ")));
+
+        if let Some(mj) = s.jobs.iter().find(|j| j.id == master_id) {
+            *lock(&mj.progress.status) = rep.steps_applied.join(" · ");
+            mj.progress.done.store(100, Ordering::Relaxed);
+            *lock(&mj.result) =
+                Some(Ok(Report { frames: rep.steps_applied.len() as u64, seconds: pj.started_at.elapsed().as_secs_f64(), ..Default::default() }));
+            mj.progress.finished.store(true, Ordering::Relaxed);
         }
     }
 }
@@ -672,23 +1114,42 @@ fn all_in_one_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     s.jobs.push(Job { id, label: "Orpheus All-In-One".into(), progress: prog.clone(), result: result.clone() });
 
     let output_slot: Arc<Mutex<Option<PreparedAllInOneOutput>>> = Arc::default();
-    s.all_in_one_jobs.push(PendingAllInOneJob { job: id, epoch: s.document_epoch, prompt: prompt.clone(), output: output_slot.clone() });
+    let plan_ready = Arc::new(AtomicBool::new(false));
+    s.all_in_one_jobs.push(PendingAllInOneJob {
+        job: id,
+        epoch: s.document_epoch,
+        prompt: prompt.clone(),
+        plan_ready: plan_ready.clone(),
+        output: output_slot.clone(),
+        plan: None,
+        attachments: Vec::new(),
+        seq_id: None,
+        stage: PipelineStage::Planning,
+        waiting_on_job: None,
+        waiting_step_success: None,
+        waiting_step_fail_prefix: None,
+        steps_applied: Vec::new(),
+        attachments_imported: 0,
+        started_at: web_time::Instant::now(),
+    });
 
     let wait = bool_p(p, "wait").unwrap_or(false);
-    let run = crate::export_tools::guard_job(prog.clone(), result.clone(), move || {
-        let t0 = web_time::Instant::now();
+    let plan_ready_bg = plan_ready.clone();
+    let prog_bg = prog.clone();
+    let result_bg = result.clone();
+    let run = move || {
         let outcome = (|| -> std::result::Result<PreparedAllInOneOutput, String> {
-            check_cancelled(Some(&prog))?;
+            check_cancelled(Some(&prog_bg))?;
             let mut plan = plan_from_prompt(&prompt, attachment_paths.len());
             if !ollama_url.trim().is_empty() {
-                *lock(&prog.status) = "Consulting local Ollama planner…".into();
+                *lock(&prog_bg.status) = "Consulting local Ollama planner…".into();
                 let _ = try_plan_with_ollama(&ollama_url, &prompt, &mut plan);
             }
-            prog.done.store(40, Ordering::Relaxed);
+            prog_bg.done.store(15, Ordering::Relaxed);
 
             let mut attachments = Vec::new();
             for path in &attachment_paths {
-                check_cancelled(Some(&prog))?;
+                check_cancelled(Some(&prog_bg))?;
                 if let Ok(meta) = std::fs::metadata(path)
                     && meta.is_file()
                     && meta.len() <= MAX_ATTACHMENT_BYTES
@@ -700,29 +1161,46 @@ fn all_in_one_cmd(s: &mut Session, p: &Value) -> Result<Value> {
             if attachments.is_empty() && !attachment_paths.is_empty() && prompt.trim().is_empty() {
                 return Err("None of the attached files could be read".to_string());
             }
-            prog.done.store(100, Ordering::Relaxed);
-
             Ok(PreparedAllInOneOutput { plan, attachments })
         })();
 
-        let rep = match outcome {
+        match outcome {
             Ok(prep) => {
                 *lock(&output_slot) = Some(prep);
-                Ok(Report { frames: 0, seconds: t0.elapsed().as_secs_f64(), ..Default::default() })
+                plan_ready_bg.store(true, Ordering::Release);
             }
             Err(e) => {
-                *lock(&prog.error) = Some(e.clone());
-                *lock(&prog.status) = e.clone();
-                Err(e)
+                *lock(&prog_bg.error) = Some(e.clone());
+                *lock(&prog_bg.status) = e.clone();
+                *lock(&result_bg) = Some(Err(e));
+                prog_bg.finished.store(true, Ordering::Relaxed);
             }
-        };
-        *lock(&result) = Some(rep);
-        prog.finished.store(true, Ordering::Relaxed);
-    });
+        }
+    };
 
     if wait || cfg!(target_arch = "wasm32") {
         run();
-        poll(s);
+        if let Some(idx) = s.all_in_one_jobs.iter().position(|j| j.job == id) {
+            let pj = s.all_in_one_jobs.remove(idx);
+            if let Some(prep) = lock(&pj.output).take() {
+                let t0 = pj.started_at;
+                match apply_all_in_one_to_session(s, prep) {
+                    Ok(rep) => {
+                        *lock(&prog.status) = rep.steps_applied.join(" · ");
+                        prog.done.store(100, Ordering::Relaxed);
+                        *lock(&result) = Some(Ok(Report { frames: rep.steps_applied.len() as u64, seconds: t0.elapsed().as_secs_f64(), ..Default::default() }));
+                        prog.finished.store(true, Ordering::Relaxed);
+                    }
+                    Err(e) => {
+                        let msg = e.to_string();
+                        *lock(&prog.error) = Some(msg.clone());
+                        *lock(&prog.status) = msg.clone();
+                        *lock(&result) = Some(Err(msg));
+                        prog.finished.store(true, Ordering::Relaxed);
+                    }
+                }
+            }
+        }
     } else {
         std::thread::Builder::new().name("orpheus-all-in-one".into()).spawn(run).map_err(|e| EngineError::Other(e.to_string()))?;
     }
@@ -886,15 +1364,23 @@ mod tests {
         assert!(en.reframe_split_screen);
         assert!(en.run_subtitles);
 
-        // Execute on demo sequence and verify `ai.autoReframe` (Game Stream Mode) runs BEFORE `ai.generateSubtitles`.
+        // Execute on demo sequence and verify `ai.autoReframe` (Game Stream Mode) runs BEFORE text/subtitle overlays.
         let mut s = make_session_with_demo();
-        let res = s.execute("ai.allInOne", json!({"prompt": prompt, "wait": true})).unwrap();
+        let res = s
+            .execute(
+                "ai.allInOne",
+                json!({
+                    "prompt": "направи формата на видеото за шортс като фейскама отиде долу и добави заглавие \"Шортс\"",
+                    "wait": true
+                }),
+            )
+            .unwrap();
         let steps: Vec<&str> = res["stepsApplied"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
         let reframe_idx = steps.iter().position(|st| st.contains("Gaming Split-Screen (9:16)"));
-        let sub_idx = steps.iter().position(|st| st.contains("Subtitles"));
+        let txt_idx = steps.iter().position(|st| st.contains("Added Text Overlay"));
         assert!(reframe_idx.is_some(), "expected Gaming Split-Screen step in {steps:?}");
-        assert!(sub_idx.is_some(), "expected AI Subtitles step in {steps:?}");
-        assert!(reframe_idx.unwrap() < sub_idx.unwrap(), "ai.autoReframe must execute before ai.generateSubtitles: {steps:?}");
+        assert!(txt_idx.is_some(), "expected Added Text Overlay step in {steps:?}");
+        assert!(reframe_idx.unwrap() < txt_idx.unwrap(), "ai.autoReframe must execute before text/subtitle overlay: {steps:?}");
 
         // Sequence canvas must have been resized to 9:16 (1080x1920) by autoReframe.
         let sid = s.state.active_sequence.unwrap();
@@ -903,5 +1389,116 @@ mod tests {
 
         // Beat Sync command is completely removed.
         assert!(crate::find_command("ai.addBeatMarkers").is_none());
+    }
+
+    #[test]
+    fn async_multi_step_pipeline_sequences_silence_subtitles_and_chapters_without_drift() {
+        use filmcraft_project::MarkerKind;
+        use std::f32::consts::TAU;
+
+        // Verify prompt planner parses both English and Bulgarian multi-step streamer prompts
+        // WITHOUT falsely triggering `run_split_at_playhead` on "split into chapters".
+        let en_plan = plan_from_prompt("cut silences, add subtitles, split into chapters, and reframe to 9:16", 0);
+        assert!(en_plan.run_remove_pauses);
+        assert!(en_plan.run_subtitles);
+        assert!(en_plan.run_vod_chapters);
+        assert!(en_plan.run_auto_reframe);
+        assert!(!en_plan.run_split_at_playhead, "'split into chapters' must not trigger a playhead razor cut");
+
+        let bg_plan = plan_from_prompt("изрежи паузите, добави субтитри, раздели на глави и направи вертикално 9:16", 0);
+        assert!(bg_plan.run_remove_pauses);
+        assert!(bg_plan.run_subtitles);
+        assert!(bg_plan.run_vod_chapters);
+        assert!(bg_plan.run_auto_reframe);
+        assert!(!bg_plan.run_split_at_playhead, "'раздели на глави' must not trigger a playhead razor cut");
+
+        // Build a 3-second sequence with a 1-second silent pause in the middle [1.0s .. 2.0s].
+        let sr = 16_000u32;
+        let mut samples = Vec::with_capacity(sr as usize * 3);
+        for i in 0..sr {
+            samples.push(((i as f32 / sr as f32) * 440.0 * TAU).sin() * 0.5);
+        }
+        samples.extend(std::iter::repeat_n(0.0_f32, sr as usize));
+        for i in 0..sr {
+            samples.push(((i as f32 / sr as f32) * 440.0 * TAU).sin() * 0.5);
+        }
+        let wav = filmcraft_media::wav::write_wav16(&samples, 1, sr);
+
+        let mut s = Session::default();
+        let audio_item = crate::commands::import_bytes(&mut s, "vod_pause.wav", wav.into(), None).unwrap();
+        s.state.project_selection = vec![audio_item];
+        s.execute("file.newSequenceFromClip", json!({"items": [audio_item.0]})).unwrap();
+        let bars = s.execute("file.newBarsAndTone", json!({"duration": 3.0})).unwrap()["item"].as_u64().unwrap();
+        let seq_id = s.state.active_sequence.unwrap();
+        let a_clip = s.active_sequence().unwrap().audio_tracks[0].items[0].id;
+        s.edit_sequence("Link Video", |q, ctx, _| {
+            let v_id = ClipId(ctx.alloc());
+            let mut v_item = q.audio_tracks[0].items[0].clone();
+            v_item.id = v_id;
+            v_item.item = ItemId(bars);
+            v_item.link = Some(a_clip.0);
+            q.video_tracks[0].items.push(v_item);
+            q.audio_tracks[0].items[0].link = Some(a_clip.0);
+            Ok(())
+        })
+        .unwrap();
+
+        let dur_before = s.project.sequence(seq_id).unwrap().duration();
+        assert!((dur_before.seconds() - 3.0).abs() < 0.05);
+
+        // Dispatch `ai.allInOne` in async UI mode (`wait: false`) and drive the state machine via `poll(&mut s)`.
+        let out = s
+            .execute(
+                "ai.allInOne",
+                json!({
+                    "prompt": "cut silences, split into chapters, and reframe to 9:16",
+                    "wait": false
+                }),
+            )
+            .unwrap();
+        let master_job_id = out["job"].as_u64().unwrap();
+
+        let deadline = web_time::Instant::now() + Duration::from_secs(10);
+        while s.all_in_one_jobs.iter().any(|j| j.job == master_job_id) {
+            assert!(web_time::Instant::now() < deadline, "async multi-step pipeline timed out");
+            // When `silence_jobs` is active, downstream `vod_chapters_jobs` and `auto_reframe_jobs` must NOT have started yet!
+            if !s.silence_jobs.is_empty() {
+                assert!(s.auto_reframe_jobs.is_empty(), "autoReframe must wait for silence removal to finish");
+                assert!(s.vod_chapters_jobs.is_empty(), "vodChapters must wait for silence removal to finish");
+            }
+            // When `auto_reframe_jobs` is active, `vod_chapters_jobs` must NOT have started yet!
+            if !s.auto_reframe_jobs.is_empty() {
+                assert!(s.vod_chapters_jobs.is_empty(), "vodChapters must wait for autoReframe to finish");
+            }
+            poll(&mut s);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+
+        let rep = s.all_in_one_report.as_ref().expect("AllInOneReport must be populated");
+        let steps = &rep.steps_applied;
+        let silence_pos = steps.iter().position(|st| st.contains("Removed silences")).expect("Removed silences step");
+        let reframe_pos = steps.iter().position(|st| st.contains("Auto-Reframe (9:16)")).expect("Auto-Reframe step");
+        let chap_pos = steps.iter().position(|st| st.contains("Stream VOD Chapterizer")).expect("VOD Chapterizer step");
+
+        // Verify strict execution order: RemovePauses -> AutoReframe -> VodChapters
+        assert!(silence_pos < reframe_pos, "RemovePauses must finish before AutoReframe: {steps:?}");
+        assert!(reframe_pos < chap_pos, "AutoReframe must finish before VodChapters: {steps:?}");
+
+        // Verify timeline was rippled (~2.16s after removing ~0.84s pause), reframed to 9:16 (1080x1920),
+        // and chapter markers end at the post-ripple duration (NOT the old 3.0s duration!).
+        let seq_after = s.project.sequence(seq_id).unwrap();
+        let dur_after = seq_after.duration();
+        assert!(dur_after < dur_before, "sequence must be shortened by silence removal");
+        assert_eq!((seq_after.settings.width, seq_after.settings.height), (1080, 1920));
+        let chapter_markers: Vec<_> = seq_after.markers.iter().filter(|m| m.kind == MarkerKind::Chapter).collect();
+        assert!(!chapter_markers.is_empty(), "VOD chapterizer must attach chapter markers");
+        for m in chapter_markers {
+            assert!(
+                (m.start + m.duration) <= dur_after + Tick::from_seconds_f64(0.05),
+                "chapter marker end ({:.2}s) must match post-ripple duration ({:.2}s) with zero drift",
+                (m.start + m.duration).seconds(),
+                dur_after.seconds()
+            );
+        }
     }
 }
